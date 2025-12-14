@@ -34,7 +34,7 @@
                         'hover': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
                     },
                     screens: {
-                        'xs': '375px', // Thêm breakpoint cho điện thoại nhỏ
+                        'xs': '375px',
                     }
                 },
             },
@@ -51,7 +51,6 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
         
-        /* Smooth scrolling for iOS */
         html { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
     </style>
 </head>
@@ -62,31 +61,22 @@
         
         <!-- HEADER -->
         <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200 transition-all duration-300 shadow-sm sm:shadow-none">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[64px] sm:h-[72px] flex items-center justify-between gap-3">
-                <!-- Logo -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-[72px] flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2 cursor-pointer group shrink-0" onclick="app.switchView('home')">
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-primary to-red-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-200 active:scale-95 transition-transform">
-                        <div class="w-3 h-3 bg-white rounded-full"></div>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary to-red-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-200 active:scale-95 transition-transform">
+                        <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full"></div>
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-lg sm:text-xl font-black tracking-tight leading-none text-slate-900">JapanMart</span>
+                        <span class="text-base sm:text-xl font-black tracking-tight leading-none text-slate-900">JapanMart</span>
                         <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider">Authentic</span>
                     </div>
                 </div>
 
-                <!-- Desktop Search -->
                 <div id="search-container" class="flex-1 max-w-xl mx-4 lg:mx-8 hidden md:block group relative">
                     <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">search</span>
-                    <input 
-                        type="text" 
-                        id="search-input"
-                        placeholder="Tìm kiếm sản phẩm..." 
-                        class="w-full h-11 pl-12 pr-4 rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-sm font-medium placeholder:text-slate-400"
-                        oninput="app.handleSearch(this.value)"
-                    />
+                    <input type="text" id="search-input" placeholder="Tìm kiếm sản phẩm..." class="w-full h-11 pl-12 pr-4 rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-sm font-medium placeholder:text-slate-400" oninput="app.handleSearch(this.value)"/>
                 </div>
 
-                <!-- Actions -->
                 <div class="flex items-center gap-2 sm:gap-3">
                     <button id="btn-admin-login" onclick="app.switchView('login')" class="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 hover:border-primary/50 hover:bg-red-50 hover:text-primary transition-all text-sm font-bold text-slate-600">
                         <span class="material-symbols-rounded text-[20px]">admin_panel_settings</span>
@@ -98,70 +88,64 @@
                         <span class="hidden sm:inline">Thoát</span>
                     </button>
                     
-                    <a href="tel:0901234567" class="flex items-center gap-2 bg-primary text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-full font-bold hover:bg-primary-dark transition-all shadow-lg shadow-red-500/30 active:scale-95">
-                        <span class="material-symbols-rounded text-[20px]">call</span> 
+                    <a href="tel:0901234567" class="flex items-center gap-1.5 sm:gap-2 bg-primary text-white px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full font-bold hover:bg-primary-dark transition-all shadow-lg shadow-red-500/30 active:scale-95">
+                        <span class="material-symbols-rounded text-[18px] sm:text-[20px]">call</span> 
                         <span class="hidden sm:inline">Liên hệ</span>
                     </a>
                 </div>
             </div>
             
-            <!-- Mobile Search Bar (Auto show/hide) -->
-            <div id="mobile-search" class="md:hidden px-4 pb-3 pt-0 bg-white/95 backdrop-blur-xl border-b border-slate-200 hidden animate-fadeIn">
+            <div id="mobile-search" class="md:hidden px-4 pb-2 pt-0 bg-white/95 backdrop-blur-xl border-b border-slate-200 hidden animate-fadeIn">
                 <div class="relative">
-                    <span class="material-symbols-rounded absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
-                    <input type="text" placeholder="Tìm kiếm sản phẩm..." class="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-100 border-none outline-none text-sm focus:ring-2 focus:ring-primary/50 font-medium placeholder:text-slate-400" oninput="app.handleSearch(this.value)"/>
+                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                    <input type="text" placeholder="Tìm kiếm nhanh..." class="w-full h-9 pl-9 pr-4 rounded-lg bg-slate-100 border-none outline-none text-sm focus:ring-2 focus:ring-primary/50 font-medium placeholder:text-slate-400" oninput="app.handleSearch(this.value)"/>
                 </div>
             </div>
         </header>
 
         <!-- MAIN CONTENT -->
         <main class="flex-1 relative pb-6">
-            
-            <!-- VIEW: HOME -->
             <div id="view-home" class="view-section animate-fadeIn">
-                <!-- Hero Section -->
-                <div class="bg-white border-b border-slate-100 mb-6 sm:mb-8">
-                    <div class="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
-                        <div class="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-900 h-[280px] xs:h-[320px] sm:h-[400px] shadow-xl sm:shadow-2xl group">
+                <div class="bg-white border-b border-slate-100 mb-4 sm:mb-8">
+                    <div class="max-w-7xl mx-auto px-3 py-3 sm:py-6 sm:px-6 lg:px-8">
+                        <div class="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-900 h-[200px] xs:h-[240px] sm:h-[400px] shadow-lg sm:shadow-2xl group">
                             <img src="https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=2000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-80 sm:opacity-90 group-hover:scale-105 transition-transform duration-[2s]">
                             <div class="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-slate-900/90 via-slate-900/50 to-transparent"></div>
                             
-                            <div class="relative z-10 h-full flex flex-col justify-end sm:justify-center px-6 pb-8 sm:px-16 sm:pb-0 max-w-2xl">
-                                <div class="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-white mb-3 sm:mb-6">
+                            <div class="relative z-10 h-full flex flex-col justify-center sm:justify-center px-5 sm:px-16 max-w-2xl">
+                                <div class="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-2 py-0.5 text-[9px] sm:text-xs font-bold text-white mb-2 sm:mb-6">
                                     <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 animate-pulse"></span>
                                     Hàng mới về
                                 </div>
-                                <h2 class="text-3xl xs:text-4xl sm:text-6xl font-black text-white mb-3 sm:mb-6 leading-tight drop-shadow-lg">
+                                <h2 class="text-2xl xs:text-3xl sm:text-6xl font-black text-white mb-3 sm:mb-6 leading-tight drop-shadow-lg">
                                     TINH HOA<br/>
                                     <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-white">NHẬT BẢN</span>
                                 </h2>
-                                <p class="text-slate-200 text-sm sm:text-lg mb-6 sm:mb-8 font-medium max-w-md leading-relaxed hidden xs:block">
+                                <p class="text-slate-200 text-sm sm:text-lg mb-6 sm:mb-8 font-medium max-w-md leading-relaxed hidden sm:block">
                                     Bộ sưu tập sản phẩm nội địa Nhật chính hãng, chất lượng chuẩn mực.
                                 </p>
-                                <button onclick="document.getElementById('product-grid').scrollIntoView({behavior: 'smooth'})" class="w-fit bg-primary hover:bg-primary-dark text-white px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full font-bold transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 text-sm sm:text-base active:scale-95">
+                                <button onclick="document.getElementById('product-grid').scrollIntoView({behavior: 'smooth'})" class="w-fit bg-primary hover:bg-primary-dark text-white px-5 py-2 sm:px-8 sm:py-3.5 rounded-full font-bold transition-all shadow-lg shadow-red-600/30 flex items-center gap-1.5 text-xs sm:text-base active:scale-95">
                                     Mua Ngay
-                                    <span class="material-symbols-rounded text-lg sm:text-xl">arrow_forward</span>
+                                    <span class="material-symbols-rounded text-base sm:text-xl">arrow_forward</span>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Categories (Mobile Optimized) -->
-                <div class="sticky top-[108px] md:top-[72px] z-30 bg-background/95 backdrop-blur-sm border-b border-slate-200/50 sm:static sm:bg-transparent sm:border-none mb-6">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex gap-2 sm:gap-3 overflow-x-auto py-3 sm:pb-4 sm:pt-2 hide-scrollbar snap-x touch-pan-x" id="category-list"></div>
+                <div class="sticky top-[100px] md:top-[72px] z-30 bg-background/95 backdrop-blur-sm border-b border-slate-200/50 sm:static sm:bg-transparent sm:border-none mb-4">
+                    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                        <div class="flex gap-2 sm:gap-3 overflow-x-auto py-2.5 sm:pb-4 sm:pt-2 hide-scrollbar snap-x touch-pan-x" id="category-list"></div>
                     </div>
                 </div>
 
-                <!-- Product Grid (Mobile Optimized) -->
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-                    <div class="flex items-center justify-between mb-4 sm:mb-8">
+                <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-20">
+                    <div class="flex items-center justify-between mb-3 sm:mb-8">
                         <div>
-                            <h2 class="text-lg sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                            <h2 class="text-base sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
                                 <span id="current-category-title">Tất cả sản phẩm</span>
                             </h2>
-                            <p class="text-slate-500 text-xs sm:text-sm mt-0.5">Sản phẩm tuyển chọn kỹ lưỡng</p>
+                            <p class="text-slate-500 text-[10px] sm:text-sm mt-0.5">Tuyển chọn kỹ lưỡng</p>
                         </div>
                     </div>
                     
@@ -169,8 +153,7 @@
                         <div class="loader"></div>
                     </div>
 
-                    <!-- Grid adjustments: gap-3 on mobile, gap-6 on desktop -->
-                    <div id="product-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 gap-y-6 sm:gap-6 sm:gap-y-10"></div>
+                    <div id="product-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 gap-y-4 sm:gap-6 sm:gap-y-10"></div>
                     
                     <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 mx-4 sm:mx-0">
                         <div class="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
@@ -182,7 +165,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: LOGIN -->
+            <!-- LOGIN VIEW -->
             <div id="view-login" class="view-section hidden min-h-[calc(100vh-80px)] flex items-center justify-center p-4 animate-fadeIn">
                 <div class="bg-white p-6 sm:p-10 rounded-3xl shadow-soft w-full max-w-[400px] border border-slate-100">
                     <div class="flex justify-center mb-6 sm:mb-8">
@@ -221,7 +204,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: ADMIN DASHBOARD -->
+            <!-- ADMIN VIEW -->
             <div id="view-admin" class="view-section hidden max-w-7xl mx-auto px-4 py-6 sm:py-8 animate-fadeIn">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                     <div>
@@ -230,7 +213,8 @@
                             <span class="w-2 h-2 rounded-full bg-green-500"></span>
                             <p class="text-slate-500 text-xs sm:text-sm">Hệ thống sẵn sàng</p>
                         </div>
-                        <p class="text-[10px] sm:text-xs text-slate-300 font-mono mt-1" id="admin-uid-display">UID: ...</p>
+                        <!-- Ẩn UID thực tế khỏi giao diện -->
+                        <p class="text-[10px] sm:text-xs text-slate-300 font-mono mt-1" id="admin-uid-display">Admin Active</p>
                     </div>
                     <div class="flex gap-2 sm:gap-3 w-full sm:w-auto">
                         <button onclick="app.checkAdminStatus()" class="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-white text-slate-700 px-3 sm:px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all border border-slate-200 text-sm active:scale-95">
@@ -262,8 +246,7 @@
             </div>
         </main>
 
-        <!-- FOOTER -->
-        <footer class="bg-white border-t border-slate-200 pt-10 sm:pt-16 pb-8">
+        <footer class="bg-white border-t border-slate-200 pt-8 sm:pt-16 pb-8">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 mb-8 sm:mb-12 text-center sm:text-left">
                     <div>
@@ -277,8 +260,6 @@
                             Chuyên cung cấp các sản phẩm nội địa Nhật Bản chính hãng. Chất lượng chuẩn mực.
                         </p>
                     </div>
-                    
-                    <!-- Simplified Footer for Mobile -->
                     <div class="hidden sm:block">
                         <h4 class="font-bold text-slate-900 mb-4">Hỗ trợ</h4>
                         <ul class="space-y-3 text-sm text-slate-500">
@@ -286,7 +267,6 @@
                             <li><a href="#" class="hover:text-primary">Chính sách bảo hành</a></li>
                         </ul>
                     </div>
-                    
                     <div>
                         <h4 class="font-bold text-slate-900 mb-4">Liên hệ</h4>
                         <ul class="space-y-3 text-sm text-slate-500 inline-block sm:block text-left">
@@ -299,15 +279,14 @@
                         </ul>
                     </div>
                 </div>
-                <div class="border-t border-slate-100 pt-8 text-center">
+                <div class="border-t border-slate-100 pt-6 sm:pt-8 text-center">
                     <p class="text-slate-400 text-xs font-medium">© 2024 JapanMart.</p>
                 </div>
             </div>
         </footer>
 
-        <!-- MODAL (Mobile Optimized) -->
+        <!-- MODAL -->
         <div id="product-modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 transition-all">
-            <!-- Added 'w-full rounded-t-2xl sm:rounded-2xl' for bottom sheet effect on mobile -->
             <div class="bg-white w-full sm:w-auto sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-[fadeIn_0.3s_cubic-bezier(0.16,1,0.3,1)] max-h-[90vh] sm:max-h-[85vh] flex flex-col">
                 <div class="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                     <h3 id="modal-title" class="font-bold text-lg text-slate-900">Thêm sản phẩm mới</h3>
@@ -392,29 +371,42 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT (Giữ nguyên logic) -->
+    <!-- JAVASCRIPT LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
-        // CONFIG
+        // CẤU HÌNH FIREBASE
+        // Lưu ý: Các key này là Public Identifier để web kết nối với Firebase, không phải mật khẩu server.
+        // Để bảo mật, hãy dùng Firestore Rules & App Check trong Firebase Console.
+        
         let firebaseConfig;
-        let adminUID = '3bO3pP9xVHS8Oe6zhHiIm0SK9Eh1';
+        
+        // ID của Admin (Trong thực tế nên dùng Custom Claims hoặc lưu role trong Firestore)
+        // Đây chỉ là check phía client để hiển thị giao diện
+        let adminUID = '3bO3pP9xVHS8Oe6zhHiIm0SK9Eh1'; 
 
         if (typeof __firebase_config !== 'undefined') {
+            // Trường hợp chạy trong môi trường có biến môi trường sẵn (như Immersive Canvas)
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
+            // [QUAN TRỌNG] NẾU CHẠY LOCALHOSE/DEPLOY RIÊNG:
+            // Hãy thay thế các giá trị bên dưới bằng thông tin từ Project Settings trong Firebase Console của bạn.
             firebaseConfig = {
-                apiKey: "AIzaSyDBdfswGWEefQR8Djscm2hkaKsi0438ODQ",
-                authDomain: "webshop-japan.firebaseapp.com",
-                projectId: "webshop-japan",
-                storageBucket: "webshop-japan.appspot.com", 
-                messagingSenderId: "854451712478",
-                appId: "1:854451712478:web:d55198786d10a9b98d2d4f",
-                measurementId: "G-LGWDL5HTYZ"
+                apiKey: "API_KEY_CUA_BAN", // Thay bằng API Key thật
+                authDomain: "PROJECT_ID.firebaseapp.com",
+                projectId: "PROJECT_ID",
+                storageBucket: "PROJECT_ID.appspot.com", 
+                messagingSenderId: "SENDER_ID",
+                appId: "APP_ID"
             };
+            
+            // Cảnh báo nếu chưa điền config
+            if (firebaseConfig.apiKey === "API_KEY_CUA_BAN") {
+                console.error("⚠️ THIẾU CONFIG: Bạn cần điền thông tin Firebase vào file index.html để app hoạt động.");
+            }
         }
 
         const fbApp = initializeApp(firebaseConfig);
@@ -440,7 +432,8 @@
                     app.listenData();
                     if (user && user.uid === adminUID) {
                         app.switchView('admin');
-                        document.getElementById('admin-uid-display').textContent = `UID: ${user.uid.substring(0,6)}...`;
+                        // Ẩn UID thật trên giao diện để tránh soi
+                        document.getElementById('admin-uid-display').textContent = `Admin Mode`;
                     } else {
                         app.switchView('home');
                     }
