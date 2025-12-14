@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JapanMart - Hàng Nhật Nội Địa</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#E60012",
+                        "surface": "#ffffff",
+                        "background": "#f8f9fa",
+                        "text-main": "#1a1a1a",
+                        "text-sub": "#6b7280",
+                    },
+                    fontFamily: {
+                        "display": ["Spline Sans", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Spline Sans', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Loading Spinner */
+        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #E60012; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-background text-text-main antialiased">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="min-h-screen flex flex-col">
+        
+        <!-- HEADER (Dùng chung) -->
+        <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+                <!-- Logo -->
+                <div class="flex items-center gap-2 text-primary cursor-pointer" onclick="app.switchView('home')">
+                    <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white">
+                        <div class="w-4 h-4 bg-white rounded-full"></div>
+                    </div>
+                    <span class="text-2xl font-bold tracking-tight hidden sm:block">JapanMart</span>
+                </div>
+
+                <!-- Search Bar (Home Only) -->
+                <div id="search-container" class="flex-1 max-w-lg mx-4 hidden md:block group relative">
+                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                    <input 
+                        type="text" 
+                        id="search-input"
+                        placeholder="Bạn muốn tìm gì hôm nay..." 
+                        class="w-full h-11 pl-12 pr-4 rounded-full bg-gray-100 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                        oninput="app.handleSearch(this.value)"
+                    />
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center gap-3">
+                    <button id="btn-admin-login" onclick="app.switchView('login')" class="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 hover:border-primary hover:text-primary hover:bg-white transition-all text-sm font-bold text-gray-600">
+                        <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span> Admin
+                    </button>
+                    <button id="btn-logout" onclick="app.logout()" class="hidden items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-sm font-bold text-gray-700">
+                        Đăng xuất
+                    </button>
+                    <a href="tel:0901234567" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200/50">
+                        <span class="material-symbols-outlined text-[20px]">call</span> 
+                        <span class="hidden sm:inline">Liên hệ</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Mobile Search -->
+            <div id="mobile-search" class="md:hidden px-4 py-3 bg-white border-t border-gray-200">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
+                    <input type="text" placeholder="Tìm kiếm..." class="w-full h-10 pl-10 pr-4 rounded-lg bg-gray-100 border-none outline-none text-sm focus:ring-1 focus:ring-primary" oninput="app.handleSearch(this.value)"/>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 relative">
+            
+            <!-- VIEW: HOME (Khách hàng) -->
+            <div id="view-home" class="view-section">
+                <!-- Banner -->
+                <div class="bg-white border-b border-gray-100 mb-6">
+                    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                        <div class="relative rounded-2xl overflow-hidden bg-gray-900 h-48 sm:h-64 lg:h-80 shadow-xl group">
+                            <img src="https://images.unsplash.com/photo-1493934558415-9d19f0b2b4d2?q=80&w=2000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700">
+                            <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+                            <div class="relative z-10 h-full flex flex-col justify-center px-8 sm:px-12">
+                                <div class="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-bold text-white mb-4">Direct from Japan</div>
+                                <h2 class="text-3xl sm:text-5xl font-black text-white mb-4 leading-tight">HÀNG NHẬT NỘI ĐỊA<br/>CHẤT LƯỢNG CAO</h2>
+                                <p class="text-gray-200 max-w-md text-sm sm:text-base">Cam kết 100% chính hãng. Giá tốt nhất thị trường.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                    <div class="flex gap-3 overflow-x-auto pb-4 hide-scrollbar" id="category-list">
+                        <!-- Categories will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Product Grid -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">package_2</span> 
+                            <span id="current-category-title">Tất cả sản phẩm</span>
+                        </h2>
+                    </div>
+                    
+                    <div id="loading-spinner" class="flex justify-center py-20 hidden">
+                        <div class="loader"></div>
+                    </div>
+
+                    <div id="product-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <!-- Products will be injected here -->
+                    </div>
+                    
+                    <div id="empty-state" class="hidden text-center py-20 bg-white rounded-xl border border-dashed border-gray-200">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4">
+                            <span class="material-symbols-outlined text-gray-400 text-3xl">search_off</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900">Không tìm thấy sản phẩm</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: LOGIN (Đăng nhập Admin) -->
+            <div id="view-login" class="view-section hidden min-h-[calc(100vh-80px)] flex items-center justify-center bg-gray-50 p-4">
+                <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm">
+                    <div class="flex justify-center mb-6">
+                        <div class="bg-red-50 p-4 rounded-full">
+                            <span class="material-symbols-outlined text-4xl text-primary">security</span>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">Đăng nhập Quản lý</h2>
+                    <p class="text-center text-gray-500 text-sm mb-6">Nhập mã PIN để truy cập kho hàng</p>
+                    
+                    <form onsubmit="app.handleAdminLogin(event)" class="space-y-4">
+                        <div>
+                            <input type="password" id="admin-pin" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-center tracking-widest text-lg" placeholder="••••••" autofocus required>
+                        </div>
+                        <p id="login-error" class="text-primary text-sm text-center font-medium hidden">Mã PIN không đúng</p>
+                        <button type="submit" class="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-red-700 transition-all shadow-lg shadow-red-200">Vào hệ thống</button>
+                        <button type="button" onclick="app.switchView('home')" class="w-full text-gray-500 text-sm py-2 hover:text-gray-800">Quay lại trang chủ</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- VIEW: ADMIN DASHBOARD -->
+            <div id="view-admin" class="view-section hidden max-w-7xl mx-auto px-4 py-8">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Quản lý Kho Hàng</h2>
+                        <p class="text-gray-500 text-sm mt-1">Thêm, sửa, xóa sản phẩm của bạn</p>
+                    </div>
+                    <button onclick="app.openModal()" class="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-red-200 hover:bg-red-700 transition-all">
+                        <span class="material-symbols-outlined">add</span> Thêm món mới
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                                <tr>
+                                    <th class="p-4 w-20">Ảnh</th>
+                                    <th class="p-4">Tên sản phẩm</th>
+                                    <th class="p-4">Danh mục</th>
+                                    <th class="p-4 text-right">Giá bán</th>
+                                    <th class="p-4 text-center">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-product-list" class="divide-y divide-gray-100">
+                                <!-- Admin Rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="bg-gray-900 text-white py-12 border-t border-gray-800">
+            <div class="max-w-7xl mx-auto px-4 text-center">
+                <p class="text-gray-400 text-sm mb-4">Chuyên hàng nội địa Nhật Bản chính hãng.</p>
+                <div class="text-gray-500 text-xs">© 2024 JapanMart. All rights reserved.</div>
+            </div>
+        </footer>
+
+        <!-- MODAL: ADD/EDIT PRODUCT -->
+        <div id="product-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 id="modal-title" class="font-bold text-xl text-gray-900">Thêm sản phẩm mới</h3>
+                    <button onclick="app.closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                
+                <form id="product-form" onsubmit="app.saveProduct(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                    <input type="hidden" id="prod-id">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên sản phẩm</label>
+                        <input type="text" id="prod-name" required class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary" placeholder="Ví dụ: Nồi cơm điện Zojirushi">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Giá bán (VNĐ)</label>
+                            <input type="number" id="prod-price" required class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary" placeholder="1500000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
+                            <select id="prod-category" class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary">
+                                <option>Đồ điện tử</option>
+                                <option>Mỹ phẩm</option>
+                                <option>Thực phẩm</option>
+                                <option>Gia dụng</option>
+                                <option>Thời trang</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Link Ảnh (URL)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="prod-image" class="flex-1 rounded-lg border-gray-300 focus:ring-primary focus:border-primary" placeholder="https://..." oninput="document.getElementById('img-preview').src = this.value || 'https://placehold.co/100x100?text=No+Img'">
+                            <div class="w-10 h-10 rounded border overflow-hidden flex-shrink-0 bg-gray-100">
+                                <img id="img-preview" src="https://placehold.co/100x100?text=No+Img" class="w-full h-full object-cover">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả ngắn</label>
+                        <textarea id="prod-desc" rows="3" class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary" placeholder="Tình trạng, xuất xứ..."></textarea>
+                    </div>
+
+                    <div class="pt-4 flex gap-3 justify-end">
+                        <button type="button" onclick="app.closeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Hủy</button>
+                        <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-primary rounded-lg hover:bg-red-700 shadow-lg shadow-red-200">Lưu lại</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script type="module">
+        // Import Firebase từ CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // ==========================================
+        // CẤU HÌNH FIREBASE (Dán của bạn vào đây nếu cần)
+        // ==========================================
+        let firebaseConfig;
+        let appId = 'japan-mart-js';
+
+        if (typeof __firebase_config !== 'undefined') {
+            // Cấu hình tự động trong môi trường Chat
+            firebaseConfig = JSON.parse(__firebase_config);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'japan-mart-default';
+        } else {
+            // Cấu hình cho web của bạn (Thay thế khi chạy thật)
+            firebaseConfig = {
+                apiKey: "API_KEY_CUA_BAN",
+                authDomain: "PROJECT_ID.firebaseapp.com",
+                projectId: "PROJECT_ID",
+                storageBucket: "PROJECT_ID.appspot.com",
+                messagingSenderId: "SENDER_ID",
+                appId: "APP_ID"
+            };
+            appId = 'my-js-shop';
+        }
+
+        // Khởi tạo
+        const fbApp = initializeApp(firebaseConfig);
+        const auth = getAuth(fbApp);
+        const db = getFirestore(fbApp);
+        
+        // Đường dẫn Collection
+        const getCollection = () => {
+             if (typeof __firebase_config !== 'undefined') {
+                return collection(db, 'artifacts', appId, 'public', 'data', 'products');
+             }
+             return collection(db, 'products');
+        };
+
+        // ==========================================
+        // APP LOGIC
+        // ==========================================
+        const state = {
+            products: [],
+            user: null,
+            searchTerm: '',
+            category: 'Tất cả',
+            categories: ['Tất cả', 'Đồ điện tử', 'Mỹ phẩm', 'Thực phẩm', 'Gia dụng', 'Thời trang']
+        };
+
+        const app = {
+            // --- Init ---
+            init: async () => {
+                // Auth Listener
+                onAuthStateChanged(auth, (user) => {
+                    state.user = user;
+                    if (user) {
+                        app.listenData();
+                    } else {
+                        app.loginAnonymously();
+                    }
+                });
+                
+                // Render UI Init
+                app.renderCategories();
+                app.switchView('home');
+            },
+
+            // --- Auth ---
+            loginAnonymously: async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                         await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                         await signInAnonymously(auth);
+                    }
+                } catch (e) { console.error("Login fail", e); }
+            },
+
+            handleAdminLogin: (e) => {
+                e.preventDefault();
+                const pin = document.getElementById('admin-pin').value;
+                if (pin === '123456') { // PIN MẶC ĐỊNH
+                    document.getElementById('login-error').classList.add('hidden');
+                    app.switchView('admin');
+                    document.getElementById('admin-pin').value = ''; // Clear pin
+                } else {
+                    document.getElementById('login-error').classList.remove('hidden');
+                }
+            },
+
+            logout: () => {
+                app.switchView('home');
+            },
+
+            // --- Data ---
+            listenData: () => {
+                document.getElementById('loading-spinner').classList.remove('hidden');
+                onSnapshot(getCollection(), (snapshot) => {
+                    state.products = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+                    // Sort by newest
+                    state.products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    
+                    document.getElementById('loading-spinner').classList.add('hidden');
+                    app.renderProducts();
+                    app.renderAdminTable();
+                });
+            },
+
+            saveProduct: async (e) => {
+                e.preventDefault();
+                if (!state.user) return;
+
+                const id = document.getElementById('prod-id').value;
+                const data = {
+                    name: document.getElementById('prod-name').value,
+                    price: Number(document.getElementById('prod-price').value),
+                    category: document.getElementById('prod-category').value,
+                    image: document.getElementById('prod-image').value,
+                    description: document.getElementById('prod-desc').value,
+                };
+
+                try {
+                    const col = getCollection();
+                    if (id) {
+                        // Update - Cần xử lý đường dẫn doc chính xác
+                        let docRef;
+                        if (typeof __firebase_config !== 'undefined') {
+                             docRef = doc(db, 'artifacts', appId, 'public', 'data', 'products', id);
+                        } else {
+                             docRef = doc(db, 'products', id);
+                        }
+                        await updateDoc(docRef, { ...data, updatedAt: Date.now() });
+                    } else {
+                        // Add
+                        await addDoc(col, { ...data, createdAt: Date.now() });
+                    }
+                    app.closeModal();
+                } catch (error) {
+                    alert("Lỗi: " + error.message);
+                }
+            },
+
+            deleteProduct: async (id) => {
+                if (!confirm("Chắc chắn xóa?")) return;
+                try {
+                    let docRef;
+                     if (typeof __firebase_config !== 'undefined') {
+                         docRef = doc(db, 'artifacts', appId, 'public', 'data', 'products', id);
+                     } else {
+                         docRef = doc(db, 'products', id);
+                     }
+                    await deleteDoc(docRef);
+                } catch (e) { alert("Lỗi xóa: " + e.message); }
+            },
+
+            // --- UI ---
+            switchView: (viewName) => {
+                // Hide all
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                
+                // Show requested
+                document.getElementById(`view-${viewName}`).classList.remove('hidden');
+                
+                // Update header buttons
+                const btnAdmin = document.getElementById('btn-admin-login');
+                const btnLogout = document.getElementById('btn-logout');
+                const searchBox = document.getElementById('search-container');
+                const mobileSearch = document.getElementById('mobile-search');
+
+                if (viewName === 'home') {
+                    btnAdmin.classList.remove('hidden');
+                    btnAdmin.classList.add('lg:flex');
+                    btnLogout.classList.add('hidden');
+                    btnLogout.classList.remove('flex');
+                    searchBox.classList.remove('hidden');
+                    searchBox.classList.add('hidden', 'md:block');
+                    mobileSearch.classList.remove('hidden');
+                } else if (viewName === 'admin') {
+                    btnAdmin.classList.add('hidden');
+                    btnAdmin.classList.remove('lg:flex');
+                    btnLogout.classList.remove('hidden');
+                    btnLogout.classList.add('flex');
+                    searchBox.classList.add('hidden'); // Hide search in admin
+                    mobileSearch.classList.add('hidden');
+                } else if (viewName === 'login') {
+                    searchBox.classList.add('hidden');
+                    mobileSearch.classList.add('hidden');
+                }
+                
+                window.scrollTo(0,0);
+            },
+
+            handleSearch: (val) => {
+                state.searchTerm = val.toLowerCase();
+                app.renderProducts();
+            },
+
+            setCategory: (cat) => {
+                state.category = cat;
+                document.getElementById('current-category-title').textContent = cat;
+                app.renderCategories(); // Re-render to update active state
+                app.renderProducts();
+            },
+
+            renderCategories: () => {
+                const html = state.categories.map(cat => `
+                    <button onclick="app.setCategory('${cat}')" 
+                        class="flex-shrink-0 px-5 py-2 rounded-full text-sm font-bold border transition-all 
+                        ${state.category === cat 
+                            ? 'bg-primary text-white border-primary shadow-md shadow-red-200' 
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'}">
+                        ${cat}
+                    </button>
+                `).join('');
+                document.getElementById('category-list').innerHTML = html;
+            },
+
+            renderProducts: () => {
+                const filtered = state.products.filter(p => {
+                    const matchSearch = p.name.toLowerCase().includes(state.searchTerm);
+                    const matchCat = state.category === 'Tất cả' || p.category === state.category;
+                    return matchSearch && matchCat;
+                });
+
+                const grid = document.getElementById('product-grid');
+                const empty = document.getElementById('empty-state');
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+
+                empty.classList.add('hidden');
+                grid.innerHTML = filtered.map(p => `
+                    <div class="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 flex flex-col h-full">
+                        <div class="relative aspect-square overflow-hidden bg-gray-100">
+                            <img src="${p.image || 'https://placehold.co/400x400?text=No+Image'}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            <div class="absolute bottom-2 right-2 bg-white/90 backdrop-blur px-3 py-1 rounded-lg shadow-sm">
+                                <span class="font-bold text-primary">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.price)}</span>
+                            </div>
+                        </div>
+                        <div class="p-4 flex flex-col flex-1">
+                            <div class="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">${p.category}</div>
+                            <h3 class="font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-primary transition-colors">${p.name}</h3>
+                            <a href="tel:0901234567" class="w-full mt-auto bg-gray-900 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">call</span> Liên hệ mua
+                            </a>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderAdminTable: () => {
+                const tbody = document.getElementById('admin-product-list');
+                if (state.products.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Chưa có sản phẩm nào.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = state.products.map(p => `
+                    <tr class="hover:bg-gray-50 group transition-colors border-b border-gray-50 last:border-0">
+                        <td class="p-4">
+                            <div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden">
+                                <img src="${p.image || 'https://placehold.co/100x100?text=No+Img'}" class="w-full h-full object-cover">
+                            </div>
+                        </td>
+                        <td class="p-4">
+                            <div class="font-semibold text-gray-900 line-clamp-1">${p.name}</div>
+                            <div class="text-xs text-gray-500 line-clamp-1">${p.description || 'Chưa có mô tả'}</div>
+                        </td>
+                        <td class="p-4"><span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">${p.category}</span></td>
+                        <td class="p-4 text-right font-bold text-primary">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.price)}</td>
+                        <td class="p-4">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="app.editProduct('${p.id}')" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-[20px]">edit_square</span></button>
+                                <button onclick="app.deleteProduct('${p.id}')" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><span class="material-symbols-outlined text-[20px]">delete</span></button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- Modal ---
+            openModal: () => {
+                document.getElementById('product-form').reset();
+                document.getElementById('prod-id').value = '';
+                document.getElementById('modal-title').textContent = 'Thêm sản phẩm mới';
+                document.getElementById('img-preview').src = 'https://placehold.co/100x100?text=No+Img';
+                document.getElementById('product-modal').classList.remove('hidden');
+                document.getElementById('product-modal').classList.add('flex');
+            },
+
+            editProduct: (id) => {
+                const p = state.products.find(x => x.id === id);
+                if (!p) return;
+                
+                document.getElementById('prod-id').value = p.id;
+                document.getElementById('prod-name').value = p.name;
+                document.getElementById('prod-price').value = p.price;
+                document.getElementById('prod-category').value = p.category;
+                document.getElementById('prod-image').value = p.image || '';
+                document.getElementById('prod-desc').value = p.description || '';
+                document.getElementById('img-preview').src = p.image || 'https://placehold.co/100x100?text=No+Img';
+                
+                document.getElementById('modal-title').textContent = 'Sửa sản phẩm';
+                document.getElementById('product-modal').classList.remove('hidden');
+                document.getElementById('product-modal').classList.add('flex');
+            },
+
+            closeModal: () => {
+                document.getElementById('product-modal').classList.add('hidden');
+                document.getElementById('product-modal').classList.remove('flex');
+            }
+        };
+
+        // Expose app to global window so HTML onclick works
+        window.app = app;
+        
+        // Start
+        app.init();
+    </script>
+</body>
+</html>
