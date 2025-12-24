@@ -1225,199 +1225,115 @@
         // Expose to app scope for button click
         app.clientSideExportDocx = clientSideExportDocx;
 
-        // --- IMPORT LOGIC (Improved) ---
-        const importModal = {
-            parsedData: null,
-            open: () => {
-                document.getElementById('importModal').classList.remove('hidden');
-                document.getElementById('importModal').classList.add('flex');
-                document.getElementById('excelFile').value = '';
-                document.getElementById('fileNameDisplay').innerText = '';
-                document.getElementById('parseResult').classList.add('hidden');
-                document.getElementById('btnConfirmImport').disabled = true;
-                importModal.parsedData = null;
-
-                const wrapper = document.getElementById('importOrgSelectWrapper');
-                if (state.userRole === 'dispatcher') {
-                    wrapper.classList.remove('hidden');
-                } else {
-                    wrapper.classList.add('hidden');
-                }
-            },
-            close: () => {
-                document.getElementById('importModal').classList.add('hidden');
-                document.getElementById('importModal').classList.remove('flex');
-            },
-            processImport: async () => {
-                if(!importModal.parsedData) return;
-                utils.toggleLoader(true, 'Đang lưu dữ liệu...');
-                const { header, people } = importModal.parsedData;
-                const batch = db.batch();
+        // --- EDIT MODAL LOGIC ---
+        const editModal = {
+            currentPersonId: null,
+            
+            open: async (personId) => {
+                utils.toggleLoader(true, "Đang tải...");
+                editModal.currentPersonId = personId;
                 
-                let dateKey = state.currentDateKey; 
-                if(header.dateRaw) {
-                   const parts = header.dateRaw.split('/');
-                   if(parts.length === 3) dateKey = `${parts[2]}${parts[1]}${parts[0]}`;
-                }
-
-                const planRef = db.collection('artifacts').doc(appId).collection('dailyPlans').doc(dateKey);
-                batch.set(planRef, { dateKey: dateKey, status: 'Draft', updatedAt: new Date() }, { merge: true });
-
-                const sourceRef = planRef.collection('sources').doc();
-                const orgId = state.userRole === 'dispatcher' ? document.getElementById('importOrgSelect').value : state.userOrgId;
-                const orgObj = state.orgs.find(o => o.id === orgId);
-                const orgName = orgObj ? orgObj.name : orgId;
-
-                batch.set(sourceRef, { orgId, orgName, headerData: header, importedBy: state.currentUser.email, importedAt: new Date() });
-
-                people.forEach(p => {
-                    const docId = `${dateKey}_${p.staffNo || Math.random().toString(36).substr(2,5)}`;
-                    const pRef = planRef.collection('people').doc(docId);
+                try {
+                    const doc = await db.collection('artifacts').doc(appId)
+                        .collection('dailyPlans').doc(state.currentDateKey)
+                        .collection('people').doc(personId).get();
                     
-                    const warnings = [];
-                    if(p.idExpiryDate) {
-                        const [d,m,y] = p.idExpiryDate.split('/').map(Number);
+                    if(!doc.exists) throw new Error("Không tìm thấy nhân sự");
+                    const p = doc.data();
+
+                    // Fill Fields
+                    document.getElementById('edit_staffNo').value = p.staffNo || '';
+                    document.getElementById('edit_fullName').value = p.fullName || '';
+                    document.getElementById('edit_title').value = p.title || '';
+                    document.getElementById('edit_orgName').value = p.orgName || '';
+                    document.getElementById('edit_dob').value = p.dob || '';
+                    document.getElementById('edit_pob').value = p.pob || '';
+                    document.getElementById('edit_phone').value = p.phone || '';
+                    document.getElementById('edit_idNo').value = p.idNo || '';
+                    document.getElementById('edit_idIssueDate').value = p.idIssueDate || '';
+                    document.getElementById('edit_idExpiryDate').value = p.idExpiryDate || '';
+                    document.getElementById('edit_weightKg').value = p.weightKg || '';
+                    document.getElementById('edit_luggageKg').value = p.luggageKg || '';
+                    document.getElementById('edit_cargoKg').value = p.cargoKg || '';
+                    document.getElementById('edit_rowNote').value = p.rowNote || '';
+                    
+                    // Advanced
+                    document.getElementById('edit_destination').value = p.destination || '';
+                    document.getElementById('edit_nvsxNo').value = p.nvsxNo || '';
+                    document.getElementById('edit_taskDesc').value = p.taskDesc || '';
+
+                    document.getElementById('editPersonModal').classList.remove('hidden');
+                    document.getElementById('editPersonModal').classList.add('flex');
+                } catch(e) {
+                    utils.showToast(e.message, "error");
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            },
+            
+            close: () => {
+                document.getElementById('editPersonModal').classList.add('hidden');
+                document.getElementById('editPersonModal').classList.remove('flex');
+            },
+            
+            save: async () => {
+                if(!editModal.currentPersonId) return;
+                utils.toggleLoader(true, "Đang lưu...");
+                
+                const updatedData = {
+                    staffNo: document.getElementById('edit_staffNo').value,
+                    fullName: document.getElementById('edit_fullName').value,
+                    title: document.getElementById('edit_title').value,
+                    dob: document.getElementById('edit_dob').value,
+                    pob: document.getElementById('edit_pob').value,
+                    phone: document.getElementById('edit_phone').value,
+                    idNo: document.getElementById('edit_idNo').value,
+                    idIssueDate: document.getElementById('edit_idIssueDate').value,
+                    idExpiryDate: document.getElementById('edit_idExpiryDate').value,
+                    weightKg: Number(document.getElementById('edit_weightKg').value),
+                    luggageKg: Number(document.getElementById('edit_luggageKg').value),
+                    cargoKg: Number(document.getElementById('edit_cargoKg').value),
+                    rowNote: document.getElementById('edit_rowNote').value,
+                    
+                    destination: document.getElementById('edit_destination').value,
+                    nvsxNo: document.getElementById('edit_nvsxNo').value,
+                    taskDesc: document.getElementById('edit_taskDesc').value,
+                    
+                    updatedBy: state.currentUser.email,
+                    updatedAt: new Date()
+                };
+
+                // Re-validate Warnings
+                const warnings = [];
+                if(updatedData.idExpiryDate) {
+                    const parts = updatedData.idExpiryDate.split('/');
+                    if(parts.length === 3) {
+                        const [d,m,y] = parts.map(Number);
                         const expDate = new Date(y, m-1, d);
                         const diffTime = expDate - new Date();
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         if(diffDays <= 60) warnings.push('CCCD sắp/đã hết hạn');
-                        p.isIdExpiring = true;
+                        updatedData.isIdExpiring = true;
                     }
+                }
+                updatedData.warnings = warnings;
 
-                    batch.set(pRef, {
-                        ...p, orgId, orgName, sourceId: sourceRef.id,
-                        destination: header.destination, nvsxNo: header.nvsxNo, taskDesc: header.taskDesc,
-                        warnings, updatedAt: new Date()
-                    });
-                });
-
-                await batch.commit();
-                utils.toggleLoader(false);
-                importModal.close();
-                utils.showToast(`Đã import ${people.length} nhân sự vào ngày ${utils.formatDate(dateKey)}`, 'success');
-                if(dateKey === state.currentDateKey) app.loadPlan();
+                try {
+                    await db.collection('artifacts').doc(appId)
+                        .collection('dailyPlans').doc(state.currentDateKey)
+                        .collection('people').doc(editModal.currentPersonId).update(updatedData);
+                    
+                    utils.showToast("Đã cập nhật thông tin", "success");
+                    editModal.close();
+                    await app.loadPlan();
+                } catch(e) {
+                    console.error(e);
+                    utils.showToast("Lỗi khi lưu: " + e.message, "error");
+                } finally {
+                    utils.toggleLoader(false);
+                }
             }
         };
-
-        document.getElementById('excelFile').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            document.getElementById('fileNameDisplay').innerText = file.name;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1, defval: ''});
-                parseExcelData(jsonData);
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function parseExcelData(rows) {
-            let header = { dateRaw: '', destination: '', nvsxNo: '', taskDesc: '' };
-            let tableStartIndex = -1;
-
-            for(let i=0; i < 20 && i < rows.length; i++) {
-                const rowStr = rows[i].join(' ').toLowerCase();
-                const rawRowStr = rows[i].join(' '); 
-
-                if(rowStr.includes('ngày') && rowStr.includes('/')) {
-                     const match = rowStr.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-                     if(match) header.dateRaw = match[1];
-                }
-                if(rowStr.includes('nơi đến')) {
-                     const cellText = rows[i].join(' ');
-                     const parts = cellText.split(/nơi đến\s*[:]/i);
-                     if (parts.length > 1) header.destination = parts[1].split(',')[0].trim();
-                     else header.destination = cellText.split(':')[1]?.trim() || 'Unknown';
-                }
-                if(rowStr.includes('nhiệm vụ')) {
-                     const match = rowStr.match(/nhiệm vụ.*[:]\s*(.*)/);
-                     if(match) header.nvsxNo = match[1].trim().split(',')[0];
-                }
-                
-                if(rowStr.includes('công việc')) {
-                     const parts = rawRowStr.split(/công việc.*[:]/i);
-                     if(parts.length > 1) header.taskDesc = parts[1].trim();
-                     else {
-                         const match = rowStr.match(/công việc.*?[:]\s*(.*)/);
-                         if(match) header.taskDesc = match[1].trim();
-                     }
-                }
-
-                if(rowStr.includes('stt') && rowStr.includes('họ và tên')) {
-                    tableStartIndex = i;
-                    break;
-                }
-            }
-
-            if (tableStartIndex === -1) {
-                alert('Không tìm thấy bảng danh sách nhân sự (Phải có cột STT, Họ và tên).');
-                return;
-            }
-
-            const headerRow = rows[tableStartIndex].map(c => c.toString().toLowerCase().trim().replace(/\n/g, ' '));
-            const colMap = {
-                staffNo: headerRow.findIndex(c => c.includes('danh số')),
-                fullName: headerRow.findIndex(c => c.includes('họ và tên')),
-                title: headerRow.findIndex(c => c.includes('chức danh')),
-                dob: headerRow.findIndex(c => c.includes('ngày sinh') || c.includes('năm sinh')),
-                pob: headerRow.findIndex(c => c.includes('nơi sinh')),
-                phone: headerRow.findIndex(c => c.includes('sđt') || c.includes('điện thoại')),
-                idNo: headerRow.findIndex(c => c.includes('cccd') || c.includes('cmnd')),
-                idIssue: headerRow.findIndex(c => c.includes('ngày cấp')),
-                idExp: headerRow.findIndex(c => c.includes('hết hạn')),
-                weight: headerRow.findIndex(c => c.includes('cân nặng')),
-                luggage: headerRow.findIndex(c => c.includes('hành lý')),
-                cargo: headerRow.findIndex(c => c.includes('hàng hóa')),
-                note: headerRow.findIndex(c => c.includes('ghi chú'))
-            };
-
-            const people = [];
-            for(let i = tableStartIndex + 1; i < rows.length; i++) {
-                const row = rows[i];
-                const rowStr = (row.join(' ') || '').toLowerCase();
-                
-                if (rowStr.includes('lãnh đạo xưởng') || 
-                    rowStr.includes('phòng kinh tế') || 
-                    rowStr.includes('trưởng phòng kỹ thuật') || 
-                    rowStr.includes('người lập') ||
-                    rowStr.includes('duyệt')) {
-                    break; 
-                }
-
-                if(!row[colMap.fullName] && !row[colMap.staffNo]) continue;
-                
-                 const nameVal = (row[colMap.fullName] || '').toString().toLowerCase();
-                 if(nameVal.includes('lãnh đạo') || nameVal.includes('phòng kinh tế')) continue;
-
-                people.push({
-                    staffNo: utils.cleanString(row[colMap.staffNo]),
-                    fullName: utils.cleanString(row[colMap.fullName]),
-                    title: utils.cleanString(row[colMap.title]),
-                    dob: utils.cleanString(row[colMap.dob]),
-                    pob: utils.cleanString(row[colMap.pob]),
-                    phone: utils.cleanString(row[colMap.phone]),
-                    idNo: utils.cleanString(row[colMap.idNo]),
-                    idIssueDate: utils.cleanString(row[colMap.idIssue]),
-                    idExpiryDate: utils.cleanString(row[colMap.idExp]),
-                    weightKg: row[colMap.weight] || 0,
-                    luggageKg: row[colMap.luggage] || 0,
-                    cargoKg: row[colMap.cargo] || 0,
-                    rowNote: utils.cleanString(row[colMap.note])
-                });
-            }
-
-            importModal.parsedData = { header, people };
-            document.getElementById('prevDate').innerText = header.dateRaw;
-            document.getElementById('prevDest').innerText = header.destination;
-            document.getElementById('prevNVSX').innerText = header.nvsxNo || 'Chưa tìm thấy';
-            document.getElementById('prevTask').innerText = header.taskDesc || 'Chưa tìm thấy';
-            document.getElementById('prevCount').innerText = people.length;
-            document.getElementById('parseResult').classList.remove('hidden');
-            document.getElementById('btnConfirmImport').disabled = false;
-        }
 
         app.init();
     </script>
