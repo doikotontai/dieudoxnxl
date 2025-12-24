@@ -77,7 +77,7 @@
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition transform active:scale-95">Đăng nhập</button>
             </form>
             <div class="mt-6 text-center text-xs text-slate-400 border-t pt-4">
-                <p>Mặc định: Admin (admin@...) / Workshop (user@...)</p>
+                <p>Liên hệ Admin để được cấp tài khoản</p>
             </div>
         </div>
     </div>
@@ -134,7 +134,7 @@
                         <button id="btnLock" onclick="app.toggleLockPlan()" class="hidden bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center transition">
                             <i class="fas fa-lock mr-2"></i> Khóa sổ
                         </button>
-                         <button id="btnExport" onclick="app.clientSideExportDocx()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center transition hover:shadow-md">
+                         <button id="btnExport" onclick="app.clientSideExportDocx()" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center transition hover:shadow-md">
                             <i class="fas fa-file-word mr-2"></i> Xuất DOCX
                         </button>
                     </div>
@@ -173,44 +173,110 @@
 
             <!-- Settings View (Admin only) -->
             <div id="settingsView" class="w-full h-full hidden p-6 overflow-y-auto">
-                <div class="max-w-4xl mx-auto space-y-6">
+                <div class="max-w-6xl mx-auto space-y-6">
                     <h2 class="text-2xl font-bold text-slate-800">Quản trị hệ thống</h2>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-700 border-b pb-3 mb-4 flex justify-between items-center">
-                                <span>Danh mục Đơn vị</span>
-                                <span class="text-xs bg-slate-100 px-2 py-1 rounded">Dùng cho Dropdown</span>
-                            </h3>
-                            <ul id="orgList" class="space-y-2 mb-4 max-h-60 overflow-y-auto pr-2"></ul>
-                            <div class="flex space-x-2 mt-4">
-                                <input id="newOrgName" type="text" placeholder="Tên đơn vị mới..." class="border border-slate-300 p-2 rounded-lg flex-grow text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <button onclick="app.addOrg()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition">Thêm</button>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left Col: Orgs & Config -->
+                        <div class="space-y-6 lg:col-span-1">
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                                <h3 class="font-bold text-slate-700 border-b pb-3 mb-4 flex justify-between items-center">
+                                    <span>Danh mục Đơn vị</span>
+                                </h3>
+                                <ul id="orgList" class="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2"></ul>
+                                <div class="flex space-x-2 mt-4">
+                                    <input id="newOrgName" type="text" placeholder="Tên đơn vị..." class="border border-slate-300 p-2 rounded-lg flex-grow text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <button onclick="app.addOrg()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700 transition">Thêm</button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                                <h3 class="font-bold text-slate-700 border-b pb-3 mb-4">Cấu hình chữ ký</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Tiêu đề (Phải)</label>
+                                        <input type="text" id="sigApprover" class="w-full border border-slate-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: TRƯỞNG BAN TTĐĐSX">
+                                    </div>
+                                     <div>
+                                        <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Họ Tên Người duyệt</label>
+                                        <input type="text" id="sigApproverName" class="w-full border border-slate-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: Nguyễn Văn A">
+                                    </div>
+                                    <button onclick="app.saveSettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg w-full text-sm font-bold shadow-sm transition">Lưu Cấu Hình</button>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-700 border-b pb-3 mb-4">Cấu hình chữ ký (Export)</h3>
-                            <div class="space-y-4">
-                                <div class="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-                                    <i class="fas fa-info-circle mr-1"></i> Cột trái mặc định là "Ký tắt". Chỉ cấu hình người duyệt bên phải.
+
+                        <!-- Right Col: User Management -->
+                        <div class="lg:col-span-2">
+                             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
+                                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                                    <h3 class="font-bold text-slate-700">Quản lý Tài khoản (Users)</h3>
+                                    <button onclick="userModal.open()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center">
+                                        <i class="fas fa-user-plus mr-2"></i> Thêm User
+                                    </button>
                                 </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Tiêu đề (Phải)</label>
-                                    <input type="text" id="sigApprover" class="w-full border border-slate-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: TRƯỞNG BAN TTĐĐSX">
+                                <div class="overflow-auto flex-grow">
+                                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                                        <thead class="bg-slate-50">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left font-bold text-slate-600">Email</th>
+                                                <th class="px-4 py-3 text-left font-bold text-slate-600">Tên hiển thị</th>
+                                                <th class="px-4 py-3 text-left font-bold text-slate-600">Vai trò</th>
+                                                <th class="px-4 py-3 text-left font-bold text-slate-600">Thuộc Xưởng</th>
+                                                <th class="px-4 py-3 text-right font-bold text-slate-600">Hành động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="userListBody" class="divide-y divide-slate-100">
+                                            <!-- Dynamic Content -->
+                                        </tbody>
+                                    </table>
                                 </div>
-                                 <div>
-                                    <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Họ Tên Người duyệt</label>
-                                    <input type="text" id="sigApproverName" class="w-full border border-slate-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: Nguyễn Văn A">
-                                </div>
-                                <button onclick="app.saveSettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg w-full text-sm font-bold shadow-sm transition mt-2">Lưu Cấu Hình</button>
-                            </div>
+                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
         </main>
+    </div>
+
+    <!-- USER MODAL (Add User) -->
+    <div id="userModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col">
+            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                <h3 class="font-bold text-slate-800 text-lg">Tạo Tài Khoản Mới</h3>
+                <button onclick="userModal.close()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Email</label>
+                    <input type="email" id="u_email" class="w-full border rounded-lg p-2.5 text-sm" placeholder="user@xnxl.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Mật khẩu</label>
+                    <input type="text" id="u_password" class="w-full border rounded-lg p-2.5 text-sm" placeholder="Mật khẩu khởi tạo">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Tên hiển thị</label>
+                    <input type="text" id="u_name" class="w-full border rounded-lg p-2.5 text-sm" placeholder="VD: Xưởng Bờ">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Vai trò</label>
+                    <select id="u_role" class="w-full border rounded-lg p-2.5 text-sm" onchange="userModal.toggleOrgSelect()">
+                        <option value="workshop">Xưởng (User)</option>
+                        <option value="dispatcher">Điều độ (Admin)</option>
+                    </select>
+                </div>
+                <div id="u_orgWrapper">
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Thuộc Đơn vị</label>
+                    <select id="u_orgId" class="w-full border rounded-lg p-2.5 text-sm"></select>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-xl">
+                <button onclick="userModal.close()" class="px-5 py-2.5 bg-white border rounded-lg text-sm font-medium">Hủy</button>
+                <button onclick="userManager.createUser()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm">Tạo User</button>
+            </div>
+        </div>
     </div>
 
     <!-- IMPORT MODAL -->
@@ -465,6 +531,9 @@
                         document.getElementById('appShell').classList.add('flex');
                         
                         await app.loadOrgs();
+                        if(state.userRole === 'dispatcher') {
+                            userManager.loadUsers();
+                        }
                         
                         const today = new Date();
                         const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -514,10 +583,12 @@
                     document.getElementById('navSettings').classList.remove('hidden');
                     document.getElementById('btnLock').classList.remove('hidden');
                     document.getElementById('importOrgSelectWrapper').classList.remove('hidden');
+                    document.getElementById('btnExport').classList.remove('hidden');
                 } else {
                      document.getElementById('navSettings').classList.add('hidden');
                      document.getElementById('btnLock').classList.add('hidden');
                      document.getElementById('importOrgSelectWrapper').classList.add('hidden');
+                     document.getElementById('btnExport').classList.add('hidden'); // Hide Export for Workshop
                 }
             },
 
@@ -535,8 +606,11 @@
                 } else {
                     state.orgs = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 }
-                const sel = document.getElementById('importOrgSelect');
-                sel.innerHTML = state.orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+                
+                // Populate Dropdowns
+                const options = state.orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+                document.getElementById('importOrgSelect').innerHTML = options;
+                document.getElementById('u_orgId').innerHTML = options;
             },
 
             loadPlan: async () => {
@@ -818,7 +892,118 @@
                 utils.showToast('Đã lưu cấu hình');
             },
 
-            // --- CLIENT-SIDE EXPORT LOGIC ---
+            // --- USER MANAGEMENT LOGIC ---
+            
+        };
+        
+        const userModal = {
+            open: () => {
+                document.getElementById('u_email').value = '';
+                document.getElementById('u_password').value = '';
+                document.getElementById('u_name').value = '';
+                userModal.toggleOrgSelect();
+                document.getElementById('userModal').classList.remove('hidden');
+                document.getElementById('userModal').classList.add('flex');
+            },
+            close: () => {
+                document.getElementById('userModal').classList.add('hidden');
+                document.getElementById('userModal').classList.remove('flex');
+            },
+            toggleOrgSelect: () => {
+                const role = document.getElementById('u_role').value;
+                const wrapper = document.getElementById('u_orgWrapper');
+                if (role === 'dispatcher') {
+                    wrapper.classList.add('hidden');
+                } else {
+                    wrapper.classList.remove('hidden');
+                }
+            }
+        };
+
+        const userManager = {
+            loadUsers: async () => {
+                const snap = await db.collection('artifacts').doc(appId).collection('users').get();
+                const tbody = document.getElementById('userListBody');
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const u = doc.data();
+                    const roleBadge = u.role === 'dispatcher' ? 
+                        '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">Admin</span>' : 
+                        '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">User</span>';
+                    
+                    return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3">${u.email}</td>
+                            <td class="px-4 py-3 font-medium">${u.displayName || '-'}</td>
+                            <td class="px-4 py-3">${roleBadge}</td>
+                            <td class="px-4 py-3 text-slate-500">${u.orgId || 'XNXL'}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button onclick="userManager.sendResetEmail('${u.email}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Reset Pass</button>
+                                <button onclick="userManager.deleteUserDoc('${doc.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            createUser: async () => {
+                const email = document.getElementById('u_email').value.trim();
+                const password = document.getElementById('u_password').value.trim();
+                const name = document.getElementById('u_name').value.trim();
+                const role = document.getElementById('u_role').value;
+                const orgId = role === 'dispatcher' ? 'XNXL' : document.getElementById('u_orgId').value;
+
+                if(!email || !password || !name) return utils.showToast('Vui lòng điền đủ thông tin', 'error');
+
+                utils.toggleLoader(true, 'Đang tạo user...');
+                try {
+                    // Secondary App Trick to create user without logging out admin
+                    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+                    const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
+                    const uid = userCred.user.uid;
+                    
+                    // Create Firestore Profile
+                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).set({
+                        email, role, orgId, displayName: name, createdAt: new Date()
+                    });
+
+                    await secondaryApp.delete(); // Cleanup
+                    
+                    utils.showToast(`Đã tạo user ${email}`, 'success');
+                    userModal.close();
+                    userManager.loadUsers();
+                } catch (e) {
+                    console.error(e);
+                    utils.showToast(e.message, 'error');
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            },
+
+            sendResetEmail: async (email) => {
+                if(!confirm(`Gửi email đặt lại mật khẩu cho ${email}?`)) return;
+                try {
+                    await auth.sendPasswordResetEmail(email);
+                    utils.showToast('Đã gửi email reset pass', 'success');
+                } catch(e) {
+                    utils.showToast(e.message, 'error');
+                }
+            },
+            
+            deleteUserDoc: async (uid) => {
+                // NOTE: This only deletes the Firestore profile, NOT the Auth account (requires Admin SDK).
+                // But deleting the profile effectively blocks them from using the app logic.
+                if(!confirm('Xóa thông tin user này khỏi hệ thống? (User vẫn có thể đăng nhập nhưng không có quyền)')) return;
+                try {
+                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).delete();
+                    utils.showToast('Đã xóa profile', 'success');
+                    userManager.loadUsers();
+                } catch(e) {
+                    utils.showToast(e.message, 'error');
+                }
+            }
+        };
+
+        // --- CLIENT-SIDE EXPORT LOGIC ---
             clientSideExportDocx: async () => {
                 utils.toggleLoader(true, 'Đang tạo file DOCX...');
                 try {
@@ -1036,117 +1221,6 @@
                     utils.toggleLoader(false);
                 }
             }
-        };
-
-        // --- EDIT MODAL LOGIC ---
-        const editModal = {
-            currentPersonId: null,
-            
-            open: async (personId) => {
-                utils.toggleLoader(true, "Đang tải...");
-                editModal.currentPersonId = personId;
-                
-                try {
-                    const doc = await db.collection('artifacts').doc(appId)
-                        .collection('dailyPlans').doc(state.currentDateKey)
-                        .collection('people').doc(personId).get();
-                    
-                    if(!doc.exists) throw new Error("Không tìm thấy nhân sự");
-                    const p = doc.data();
-
-                    // Fill Fields
-                    document.getElementById('edit_staffNo').value = p.staffNo || '';
-                    document.getElementById('edit_fullName').value = p.fullName || '';
-                    document.getElementById('edit_title').value = p.title || '';
-                    document.getElementById('edit_orgName').value = p.orgName || '';
-                    document.getElementById('edit_dob').value = p.dob || '';
-                    document.getElementById('edit_pob').value = p.pob || '';
-                    document.getElementById('edit_phone').value = p.phone || '';
-                    document.getElementById('edit_idNo').value = p.idNo || '';
-                    document.getElementById('edit_idIssueDate').value = p.idIssueDate || '';
-                    document.getElementById('edit_idExpiryDate').value = p.idExpiryDate || '';
-                    document.getElementById('edit_weightKg').value = p.weightKg || '';
-                    document.getElementById('edit_luggageKg').value = p.luggageKg || '';
-                    document.getElementById('edit_cargoKg').value = p.cargoKg || '';
-                    document.getElementById('edit_rowNote').value = p.rowNote || '';
-                    
-                    // Advanced
-                    document.getElementById('edit_destination').value = p.destination || '';
-                    document.getElementById('edit_nvsxNo').value = p.nvsxNo || '';
-                    document.getElementById('edit_taskDesc').value = p.taskDesc || '';
-
-                    document.getElementById('editPersonModal').classList.remove('hidden');
-                    document.getElementById('editPersonModal').classList.add('flex');
-                } catch(e) {
-                    utils.showToast(e.message, "error");
-                } finally {
-                    utils.toggleLoader(false);
-                }
-            },
-            
-            close: () => {
-                document.getElementById('editPersonModal').classList.add('hidden');
-                document.getElementById('editPersonModal').classList.remove('flex');
-            },
-            
-            save: async () => {
-                if(!editModal.currentPersonId) return;
-                utils.toggleLoader(true, "Đang lưu...");
-                
-                const updatedData = {
-                    staffNo: document.getElementById('edit_staffNo').value,
-                    fullName: document.getElementById('edit_fullName').value,
-                    title: document.getElementById('edit_title').value,
-                    dob: document.getElementById('edit_dob').value,
-                    pob: document.getElementById('edit_pob').value,
-                    phone: document.getElementById('edit_phone').value,
-                    idNo: document.getElementById('edit_idNo').value,
-                    idIssueDate: document.getElementById('edit_idIssueDate').value,
-                    idExpiryDate: document.getElementById('edit_idExpiryDate').value,
-                    weightKg: Number(document.getElementById('edit_weightKg').value),
-                    luggageKg: Number(document.getElementById('edit_luggageKg').value),
-                    cargoKg: Number(document.getElementById('edit_cargoKg').value),
-                    rowNote: document.getElementById('edit_rowNote').value,
-                    
-                    destination: document.getElementById('edit_destination').value,
-                    nvsxNo: document.getElementById('edit_nvsxNo').value,
-                    taskDesc: document.getElementById('edit_taskDesc').value,
-                    
-                    updatedBy: state.currentUser.email,
-                    updatedAt: new Date()
-                };
-
-                // Re-validate Warnings
-                const warnings = [];
-                if(updatedData.idExpiryDate) {
-                    const parts = updatedData.idExpiryDate.split('/');
-                    if(parts.length === 3) {
-                        const [d,m,y] = parts.map(Number);
-                        const expDate = new Date(y, m-1, d);
-                        const diffTime = expDate - new Date();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        if(diffDays <= 60) warnings.push('CCCD sắp/đã hết hạn');
-                        updatedData.isIdExpiring = true;
-                    }
-                }
-                updatedData.warnings = warnings;
-
-                try {
-                    await db.collection('artifacts').doc(appId)
-                        .collection('dailyPlans').doc(state.currentDateKey)
-                        .collection('people').doc(editModal.currentPersonId).update(updatedData);
-                    
-                    utils.showToast("Đã cập nhật thông tin", "success");
-                    editModal.close();
-                    await app.loadPlan();
-                } catch(e) {
-                    console.error(e);
-                    utils.showToast("Lỗi khi lưu: " + e.message, "error");
-                } finally {
-                    utils.toggleLoader(false);
-                }
-            }
-        };
 
         app.init();
     </script>
