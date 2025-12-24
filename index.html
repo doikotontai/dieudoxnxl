@@ -892,118 +892,7 @@
                 utils.showToast('Đã lưu cấu hình');
             },
 
-            // --- USER MANAGEMENT LOGIC ---
-            
-        };
-        
-        const userModal = {
-            open: () => {
-                document.getElementById('u_email').value = '';
-                document.getElementById('u_password').value = '';
-                document.getElementById('u_name').value = '';
-                userModal.toggleOrgSelect();
-                document.getElementById('userModal').classList.remove('hidden');
-                document.getElementById('userModal').classList.add('flex');
-            },
-            close: () => {
-                document.getElementById('userModal').classList.add('hidden');
-                document.getElementById('userModal').classList.remove('flex');
-            },
-            toggleOrgSelect: () => {
-                const role = document.getElementById('u_role').value;
-                const wrapper = document.getElementById('u_orgWrapper');
-                if (role === 'dispatcher') {
-                    wrapper.classList.add('hidden');
-                } else {
-                    wrapper.classList.remove('hidden');
-                }
-            }
-        };
-
-        const userManager = {
-            loadUsers: async () => {
-                const snap = await db.collection('artifacts').doc(appId).collection('users').get();
-                const tbody = document.getElementById('userListBody');
-                tbody.innerHTML = snap.docs.map(doc => {
-                    const u = doc.data();
-                    const roleBadge = u.role === 'dispatcher' ? 
-                        '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">Admin</span>' : 
-                        '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">User</span>';
-                    
-                    return `
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3">${u.email}</td>
-                            <td class="px-4 py-3 font-medium">${u.displayName || '-'}</td>
-                            <td class="px-4 py-3">${roleBadge}</td>
-                            <td class="px-4 py-3 text-slate-500">${u.orgId || 'XNXL'}</td>
-                            <td class="px-4 py-3 text-right">
-                                <button onclick="userManager.sendResetEmail('${u.email}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Reset Pass</button>
-                                <button onclick="userManager.deleteUserDoc('${doc.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            },
-
-            createUser: async () => {
-                const email = document.getElementById('u_email').value.trim();
-                const password = document.getElementById('u_password').value.trim();
-                const name = document.getElementById('u_name').value.trim();
-                const role = document.getElementById('u_role').value;
-                const orgId = role === 'dispatcher' ? 'XNXL' : document.getElementById('u_orgId').value;
-
-                if(!email || !password || !name) return utils.showToast('Vui lòng điền đủ thông tin', 'error');
-
-                utils.toggleLoader(true, 'Đang tạo user...');
-                try {
-                    // Secondary App Trick to create user without logging out admin
-                    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
-                    const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
-                    const uid = userCred.user.uid;
-                    
-                    // Create Firestore Profile
-                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).set({
-                        email, role, orgId, displayName: name, createdAt: new Date()
-                    });
-
-                    await secondaryApp.delete(); // Cleanup
-                    
-                    utils.showToast(`Đã tạo user ${email}`, 'success');
-                    userModal.close();
-                    userManager.loadUsers();
-                } catch (e) {
-                    console.error(e);
-                    utils.showToast(e.message, 'error');
-                } finally {
-                    utils.toggleLoader(false);
-                }
-            },
-
-            sendResetEmail: async (email) => {
-                if(!confirm(`Gửi email đặt lại mật khẩu cho ${email}?`)) return;
-                try {
-                    await auth.sendPasswordResetEmail(email);
-                    utils.showToast('Đã gửi email reset pass', 'success');
-                } catch(e) {
-                    utils.showToast(e.message, 'error');
-                }
-            },
-            
-            deleteUserDoc: async (uid) => {
-                // NOTE: This only deletes the Firestore profile, NOT the Auth account (requires Admin SDK).
-                // But deleting the profile effectively blocks them from using the app logic.
-                if(!confirm('Xóa thông tin user này khỏi hệ thống? (User vẫn có thể đăng nhập nhưng không có quyền)')) return;
-                try {
-                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).delete();
-                    utils.showToast('Đã xóa profile', 'success');
-                    userManager.loadUsers();
-                } catch(e) {
-                    utils.showToast(e.message, 'error');
-                }
-            }
-        };
-
-        // --- CLIENT-SIDE EXPORT LOGIC ---
+            // --- CLIENT-SIDE EXPORT LOGIC ---
             clientSideExportDocx: async () => {
                 utils.toggleLoader(true, 'Đang tạo file DOCX...');
                 try {
@@ -1221,6 +1110,226 @@
                     utils.toggleLoader(false);
                 }
             }
+        };
+
+        // --- USER MANAGEMENT LOGIC ---
+        
+        const userModal = {
+            open: () => {
+                document.getElementById('u_email').value = '';
+                document.getElementById('u_password').value = '';
+                document.getElementById('u_name').value = '';
+                userModal.toggleOrgSelect();
+                document.getElementById('userModal').classList.remove('hidden');
+                document.getElementById('userModal').classList.add('flex');
+            },
+            close: () => {
+                document.getElementById('userModal').classList.add('hidden');
+                document.getElementById('userModal').classList.remove('flex');
+            },
+            toggleOrgSelect: () => {
+                const role = document.getElementById('u_role').value;
+                const wrapper = document.getElementById('u_orgWrapper');
+                if (role === 'dispatcher') {
+                    wrapper.classList.add('hidden');
+                } else {
+                    wrapper.classList.remove('hidden');
+                }
+            }
+        };
+
+        const userManager = {
+            loadUsers: async () => {
+                const snap = await db.collection('artifacts').doc(appId).collection('users').get();
+                const tbody = document.getElementById('userListBody');
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const u = doc.data();
+                    const roleBadge = u.role === 'dispatcher' ? 
+                        '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">Admin</span>' : 
+                        '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">User</span>';
+                    
+                    return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3">${u.email}</td>
+                            <td class="px-4 py-3 font-medium">${u.displayName || '-'}</td>
+                            <td class="px-4 py-3">${roleBadge}</td>
+                            <td class="px-4 py-3 text-slate-500">${u.orgId || 'XNXL'}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button onclick="userManager.sendResetEmail('${u.email}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Reset Pass</button>
+                                <button onclick="userManager.deleteUserDoc('${doc.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            createUser: async () => {
+                const email = document.getElementById('u_email').value.trim();
+                const password = document.getElementById('u_password').value.trim();
+                const name = document.getElementById('u_name').value.trim();
+                const role = document.getElementById('u_role').value;
+                const orgId = role === 'dispatcher' ? 'XNXL' : document.getElementById('u_orgId').value;
+
+                if(!email || !password || !name) return utils.showToast('Vui lòng điền đủ thông tin', 'error');
+
+                utils.toggleLoader(true, 'Đang tạo user...');
+                try {
+                    // Secondary App Trick to create user without logging out admin
+                    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+                    const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
+                    const uid = userCred.user.uid;
+                    
+                    // Create Firestore Profile
+                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).set({
+                        email, role, orgId, displayName: name, createdAt: new Date()
+                    });
+
+                    await secondaryApp.delete(); // Cleanup
+                    
+                    utils.showToast(`Đã tạo user ${email}`, 'success');
+                    userModal.close();
+                    userManager.loadUsers();
+                } catch (e) {
+                    console.error(e);
+                    utils.showToast(e.message, 'error');
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            },
+
+            sendResetEmail: async (email) => {
+                if(!confirm(`Gửi email đặt lại mật khẩu cho ${email}?`)) return;
+                try {
+                    await auth.sendPasswordResetEmail(email);
+                    utils.showToast('Đã gửi email reset pass', 'success');
+                } catch(e) {
+                    utils.showToast(e.message, 'error');
+                }
+            },
+            
+            deleteUserDoc: async (uid) => {
+                // NOTE: This only deletes the Firestore profile, NOT the Auth account (requires Admin SDK).
+                // But deleting the profile effectively blocks them from using the app logic.
+                if(!confirm('Xóa thông tin user này khỏi hệ thống? (User vẫn có thể đăng nhập nhưng không có quyền)')) return;
+                try {
+                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).delete();
+                    utils.showToast('Đã xóa profile', 'success');
+                    userManager.loadUsers();
+                } catch(e) {
+                    utils.showToast(e.message, 'error');
+                }
+            }
+        };
+
+        // --- EDIT MODAL LOGIC ---
+        const editModal = {
+            currentPersonId: null,
+            
+            open: async (personId) => {
+                utils.toggleLoader(true, "Đang tải...");
+                editModal.currentPersonId = personId;
+                
+                try {
+                    const doc = await db.collection('artifacts').doc(appId)
+                        .collection('dailyPlans').doc(state.currentDateKey)
+                        .collection('people').doc(personId).get();
+                    
+                    if(!doc.exists) throw new Error("Không tìm thấy nhân sự");
+                    const p = doc.data();
+
+                    // Fill Fields
+                    document.getElementById('edit_staffNo').value = p.staffNo || '';
+                    document.getElementById('edit_fullName').value = p.fullName || '';
+                    document.getElementById('edit_title').value = p.title || '';
+                    document.getElementById('edit_orgName').value = p.orgName || '';
+                    document.getElementById('edit_dob').value = p.dob || '';
+                    document.getElementById('edit_pob').value = p.pob || '';
+                    document.getElementById('edit_phone').value = p.phone || '';
+                    document.getElementById('edit_idNo').value = p.idNo || '';
+                    document.getElementById('edit_idIssueDate').value = p.idIssueDate || '';
+                    document.getElementById('edit_idExpiryDate').value = p.idExpiryDate || '';
+                    document.getElementById('edit_weightKg').value = p.weightKg || '';
+                    document.getElementById('edit_luggageKg').value = p.luggageKg || '';
+                    document.getElementById('edit_cargoKg').value = p.cargoKg || '';
+                    document.getElementById('edit_rowNote').value = p.rowNote || '';
+                    
+                    // Advanced
+                    document.getElementById('edit_destination').value = p.destination || '';
+                    document.getElementById('edit_nvsxNo').value = p.nvsxNo || '';
+                    document.getElementById('edit_taskDesc').value = p.taskDesc || '';
+
+                    document.getElementById('editPersonModal').classList.remove('hidden');
+                    document.getElementById('editPersonModal').classList.add('flex');
+                } catch(e) {
+                    utils.showToast(e.message, "error");
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            },
+            
+            close: () => {
+                document.getElementById('editPersonModal').classList.add('hidden');
+                document.getElementById('editPersonModal').classList.remove('flex');
+            },
+            
+            save: async () => {
+                if(!editModal.currentPersonId) return;
+                utils.toggleLoader(true, "Đang lưu...");
+                
+                const updatedData = {
+                    staffNo: document.getElementById('edit_staffNo').value,
+                    fullName: document.getElementById('edit_fullName').value,
+                    title: document.getElementById('edit_title').value,
+                    dob: document.getElementById('edit_dob').value,
+                    pob: document.getElementById('edit_pob').value,
+                    phone: document.getElementById('edit_phone').value,
+                    idNo: document.getElementById('edit_idNo').value,
+                    idIssueDate: document.getElementById('edit_idIssueDate').value,
+                    idExpiryDate: document.getElementById('edit_idExpiryDate').value,
+                    weightKg: Number(document.getElementById('edit_weightKg').value),
+                    luggageKg: Number(document.getElementById('edit_luggageKg').value),
+                    cargoKg: Number(document.getElementById('edit_cargoKg').value),
+                    rowNote: document.getElementById('edit_rowNote').value,
+                    
+                    destination: document.getElementById('edit_destination').value,
+                    nvsxNo: document.getElementById('edit_nvsxNo').value,
+                    taskDesc: document.getElementById('edit_taskDesc').value,
+                    
+                    updatedBy: state.currentUser.email,
+                    updatedAt: new Date()
+                };
+
+                // Re-validate Warnings
+                const warnings = [];
+                if(updatedData.idExpiryDate) {
+                    const parts = updatedData.idExpiryDate.split('/');
+                    if(parts.length === 3) {
+                        const [d,m,y] = parts.map(Number);
+                        const expDate = new Date(y, m-1, d);
+                        const diffTime = expDate - new Date();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        if(diffDays <= 60) warnings.push('CCCD sắp/đã hết hạn');
+                        updatedData.isIdExpiring = true;
+                    }
+                }
+                updatedData.warnings = warnings;
+
+                try {
+                    await db.collection('artifacts').doc(appId)
+                        .collection('dailyPlans').doc(state.currentDateKey)
+                        .collection('people').doc(editModal.currentPersonId).update(updatedData);
+                    
+                    utils.showToast("Đã cập nhật thông tin", "success");
+                    editModal.close();
+                    await app.loadPlan();
+                } catch(e) {
+                    console.error(e);
+                    utils.showToast("Lỗi khi lưu: " + e.message, "error");
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            }
+        };
 
         app.init();
     </script>
