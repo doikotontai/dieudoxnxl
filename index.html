@@ -751,13 +751,17 @@
                 let html = '';
                 Object.keys(grouped).sort().forEach(dest => {
                     const group = grouped[dest];
-                    const firstP = group[0];
-                    const taskDisplay = (firstP.taskDesc || '').replace(/\n/g, '<br/>');
+                    
+                    // -- CHANGE START: Aggregate ALL NVSX and Task info for the header --
+                    const allNvsx = [...new Set(group.map(p => p.nvsxNo).filter(x => x))].join('; ');
+                    const uniqueTasks = [...new Set(group.map(p => p.taskDesc).filter(t => t))];
+                    const taskDisplay = uniqueTasks.map(t => t.replace(/\n/g, '<br/>')).join('<br/><span class="text-slate-300 block my-1 border-t border-slate-200"></span>');
+                    // -- CHANGE END --
                     
                     const metaInfo = `
                         <div class="mt-1 text-xs text-slate-600 space-y-1">
-                            <div><span class="font-bold">NVSX:</span> ${firstP.nvsxNo || '--'}</div>
-                            <div class="flex items-start"><span class="font-bold mr-1 whitespace-nowrap">Công việc:</span> <span class="line-clamp-2">${taskDisplay || '--'}</span></div>
+                            <div><span class="font-bold">NVSX:</span> ${allNvsx || '--'}</div>
+                            <div class="flex items-start"><span class="font-bold mr-1 whitespace-nowrap">Công việc:</span> <span class="line-clamp-3 overflow-hidden text-ellipsis">${taskDisplay || '--'}</span></div>
                         </div>`;
 
                     html += `
@@ -1472,10 +1476,12 @@
                         const uniqueNVSX = [...new Set(group.map(p => p.nvsxNo).filter(x => x))].join('; ');
                         const uniqueTasks = [...new Set(group.map(p => p.taskDesc).filter(t => t))];
                         
+                        // -- CHANGE START 2.1: Remove "Tại" --
                         children.push(new Paragraph({ 
-                            children: [ new TextRun({ text: "-", size: SIZE_NORMAL, font: FONT_FAMILY }), new TextRun({ text: ` Tại ${dest}: `, bold: true, size: SIZE_NORMAL, font: FONT_FAMILY }) ],
+                            children: [ new TextRun({ text: "-", size: SIZE_NORMAL, font: FONT_FAMILY }), new TextRun({ text: ` ${dest}: `, bold: true, size: SIZE_NORMAL, font: FONT_FAMILY }) ],
                             indent: { left: 720 }, spacing: { before: 100 }
                         }));
+                        // -- CHANGE END 2.1 --
 
                         if(uniqueNVSX) {
                              children.push(new Paragraph({ children: [ new TextRun({ text: `+ NVSX: ${uniqueNVSX}`, size: SIZE_NORMAL, font: FONT_FAMILY }) ], indent: { left: 1440 } }));
@@ -1486,9 +1492,18 @@
                             uniqueTasks.forEach(task => {
                                 const lines = task.split('\n');
                                 lines.forEach((line) => {
-                                    if(line.trim()) {
-                                        children.push(new Paragraph({ children: [ new TextRun({ text: line.trim(), size: SIZE_NORMAL, font: FONT_FAMILY }) ], indent: { left: 2160 } }));
+                                    // -- CHANGE START 2.2: Replace numbering "1)" with "- " --
+                                    let cleanLine = line.trim();
+                                    if (/^\d+[\)\.]/.test(cleanLine)) {
+                                        cleanLine = cleanLine.replace(/^\d+[\)\.]\s*/, '- ');
+                                    } else if (!cleanLine.startsWith('-')) {
+                                        cleanLine = '- ' + cleanLine;
                                     }
+                                    
+                                    if(cleanLine) {
+                                         children.push(new Paragraph({ children: [ new TextRun({ text: cleanLine, size: SIZE_NORMAL, font: FONT_FAMILY }) ], indent: { left: 2160 } }));
+                                    }
+                                    // -- CHANGE END 2.2 --
                                 });
                             });
                         }
