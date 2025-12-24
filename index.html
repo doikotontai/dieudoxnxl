@@ -561,6 +561,9 @@
                         utils.showToast(err.message, 'error');
                     }
                 });
+                
+                // Attach Event Listener for Import File
+                document.getElementById('excelFile').addEventListener('change', importModal.handleFile);
             },
 
             logout: async () => {
@@ -891,11 +894,298 @@
                 await db.collection('artifacts').doc(appId).collection('settings').doc('signature').set(config);
                 utils.showToast('Đã lưu cấu hình');
             },
-
-            // --- USER MANAGEMENT LOGIC ---
-            
         };
         
+        // --- IMPORT LOGIC (NEWLY ADDED) ---
+        const importModal = {
+            parsedData: null,
+            
+            open: () => {
+                document.getElementById('excelFile').value = '';
+                document.getElementById('fileNameDisplay').innerText = '';
+                document.getElementById('parseResult').classList.add('hidden');
+                document.getElementById('btnConfirmImport').disabled = true;
+                
+                // Show modal
+                document.getElementById('importModal').classList.remove('hidden');
+                document.getElementById('importModal').classList.add('flex');
+            },
+
+            close: () => {
+                 document.getElementById('importModal').classList.add('hidden');
+                 document.getElementById('importModal').classList.remove('flex');
+            },
+            
+            handleFile: async (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                
+                document.getElementById('fileNameDisplay').innerText = file.name;
+                utils.toggleLoader(true, 'Đang phân tích file Excel...');
+                
+                try {
+                    const data = await importModal.parseExcel(file);
+                    importModal.parsedData = data;
+                    
+                    // Render Preview
+                    document.getElementById('prevDate').innerText = data.date || '--';
+                    document.getElementById('prevDest').innerText = data.destination || '--';
+                    document.getElementById('prevNVSX').innerText = data.nvsx || '--';
+                    document.getElementById('prevTask').innerText = data.task || '--';
+                    document.getElementById('prevCount').innerText = data.people.length;
+                    
+                    // Check Date warning
+                    const selectedDate = document.getElementById('planDateInput').value;
+                    const [y, m, d] = selectedDate.split('-');
+                    const formattedSelect = `${d}/${m}/${y}`;
+                    
+                    if(data.date && data.date !== formattedSelect) {
+                         const warnEl = document.getElementById('prevWarning');
+                         warnEl.classList.remove('hidden');
+                         warnEl.title = `File: ${data.date} khác với Ngày đang chọn: ${formattedSelect}`;
+                    } else {
+                        document.getElementById('prevWarning').classList.add('hidden');
+                    }
+
+                    document.getElementById('parseResult').classList.remove('hidden');
+                    document.getElementById('btnConfirmImport').disabled = data.people.length === 0;
+
+                } catch (err) {
+                    utils.showToast('Lỗi đọc file: ' + err.message, 'error');
+                    console.error(err);
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            },
+            
+            parseExcel: (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, {type: 'array'});
+                            const sheetName = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[sheetName];
+                            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ''});
+                            
+                            // 1. Extract Meta info
+                            let date = '';
+                            let destination = '';
+                            let nvsx = '';
+                            let task = '';
+                            let headerRowIndex = -1;
+                            
+                            // --- FIX: Get specific cells as requested ---
+                            // 1) Ngày ĐK: B6 (Index: Row 5, Col 1)
+                            if (rows[5] && rows[5][1]) {
+                                const val = rows[5][1].toString().trim();
+                                // Try standard date regex dd/mm/yyyy
+                                const dateMatch = val.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+                                if (dateMatch) {
+                                    date = `${dateMatch[1].padStart(2,'0')}/${dateMatch[2].padStart(2,'0')}/${dateMatch[3]}`;
+                                } else {
+                                    // Try extracting from text like "Ngày 24 tháng 12..."
+                                    const textMatch = val.toLowerCase().match(/ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/);
+                                    if(textMatch) {
+                                         date = `${textMatch[1].padStart(2,'0')}/${textMatch[2].padStart(2,'0')}/${textMatch[3]}`;
+                                    }
+                                }
+                            }
+
+                            // 2) Giàn (Nơi đến): B7 (Index: Row 6, Col 1)
+                            if (rows[6] && rows[6][1]) {
+                                let val = rows[6][1].toString().trim();
+                                // FIX: Use substring to handle cases with multiple colons
+                                if(val.includes(':')) {
+                                    val = val.substring(val.indexOf(':') + 1).trim();
+                                }
+                                destination = val;
+                            }
+
+                            // 3) Nội dung công việc: B9 (Index: Row 8, Col 1)
+                            if (rows[8] && rows[8][1]) {
+                                let val = rows[8][1].toString().trim();
+                                
+                                // FIX: Remove prefix if present (e.g. "Công việc:")
+                                if(val.includes(':')) {
+                                    // Heuristic: if the part before colon is short (likely a label)
+                                    const firstColon = val.indexOf(':');
+                                    if (firstColon < 50) { 
+                                        val = val.substring(firstColon + 1).trim();
+                                    }
+                                }
+                                
+                                // FIX: Auto-formatting for multiple lines
+                                // Split by newlines, filter empty lines
+                                const lines = val.split(/\r\n|\r|\n/).map(x => x.trim()).filter(x => x);
+                                if(lines.length > 1) {
+                                    task = lines.map((line, idx) => `${idx+1}) ${line}`).join('\n');
+                                } else {
+                                    task = val;
+                                }
+                            }
+                            
+                            // Scan for Header and NVSX (since NVSX wasn't specified fixed)
+                            for(let i=0; i < Math.min(rows.length, 25); i++) {
+                                const rowStr = rows[i].join(' ').toLowerCase();
+                                
+                                // Detect Header Row
+                                if(rowStr.includes('stt') && (rowStr.includes('họ và tên') || rowStr.includes('họ tên'))) {
+                                    headerRowIndex = i;
+                                }
+
+                                // Meta Extraction (Fallback/NVSX)
+                                if((rowStr.includes('nhiệm vụ') || rowStr.includes('nvsx')) && !nvsx) {
+                                     const parts = rowStr.split(/[:;]/);
+                                     if(parts.length > 1) nvsx = parts[1].trim().toUpperCase();
+                                }
+                            }
+                            
+                            // 2. Extract People
+                            if(headerRowIndex === -1) {
+                                return reject(new Error("Không tìm thấy dòng tiêu đề bảng (chứa STT, Họ tên)"));
+                            }
+                            
+                            const headers = rows[headerRowIndex].map(h => h.toString().toLowerCase().trim());
+                            const colMap = {
+                                staffNo: headers.findIndex(h => h.includes('danh số') || h.includes('msnv')),
+                                fullName: headers.findIndex(h => h.includes('họ và tên') || h.includes('họ tên')),
+                                title: headers.findIndex(h => h.includes('chức danh')),
+                                dob: headers.findIndex(h => h.includes('sinh')),
+                                pob: headers.findIndex(h => h.includes('nơi sinh')),
+                                phone: headers.findIndex(h => h.includes('sđt') || h.includes('điện thoại')),
+                                idNo: headers.findIndex(h => h.includes('cccd') || h.includes('cmnd')),
+                                idExpiry: headers.findIndex(h => h.includes('hết hạn') || h.includes('ngày cấp')), // Sometimes merged
+                                weight: headers.findIndex(h => h.includes('kg') || h.includes('trọng lượng') || h.includes('cân nặng')),
+                                luggage: headers.findIndex(h => h.includes('hành lý')),
+                                cargo: headers.findIndex(h => h.includes('hàng hóa') || h.includes('vật tư'))
+                            };
+                            
+                            if(colMap.fullName === -1) return reject(new Error("Cột 'Họ và tên' không tìm thấy"));
+
+                            const people = [];
+                            for(let i = headerRowIndex + 1; i < rows.length; i++) {
+                                const row = rows[i];
+                                // Skip empty rows or footer rows
+                                if(!row || row.length < 2 || !row[colMap.fullName]) continue;
+                                const name = row[colMap.fullName].toString().trim();
+                                if(!name || name.toLowerCase().includes('tổng cộng') || name.toLowerCase().includes('người lập')) continue;
+                                
+                                const person = {
+                                    fullName: name,
+                                    staffNo: colMap.staffNo > -1 ? utils.cleanString(row[colMap.staffNo]) : '',
+                                    title: colMap.title > -1 ? utils.cleanString(row[colMap.title]) : '',
+                                    dob: colMap.dob > -1 ? utils.cleanString(row[colMap.dob]) : '',
+                                    pob: colMap.pob > -1 ? utils.cleanString(row[colMap.pob]) : '',
+                                    phone: colMap.phone > -1 ? utils.cleanString(row[colMap.phone]) : '',
+                                    idNo: colMap.idNo > -1 ? utils.cleanString(row[colMap.idNo]) : '',
+                                    idExpiryDate: colMap.idExpiry > -1 ? utils.cleanString(row[colMap.idExpiry]) : '',
+                                    weightKg: colMap.weight > -1 ? (parseFloat(row[colMap.weight]) || 0) : 0,
+                                    luggageKg: colMap.luggage > -1 ? (parseFloat(row[colMap.luggage]) || 0) : 0,
+                                    cargoKg: colMap.cargo > -1 ? (parseFloat(row[colMap.cargo]) || 0) : 0,
+                                };
+                                people.push(person);
+                            }
+                            
+                            resolve({ date, destination, nvsx, task, people });
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            },
+            
+            processImport: async () => {
+                if(!importModal.parsedData) return;
+                
+                utils.toggleLoader(true, 'Đang lưu vào hệ thống...');
+                
+                // Determine Org
+                let targetOrgId = state.userOrgId;
+                let targetOrgName = state.userOrgId;
+                
+                if(state.userRole === 'dispatcher') {
+                    const sel = document.getElementById('importOrgSelect');
+                    targetOrgId = sel.value;
+                    targetOrgName = sel.options[sel.selectedIndex].text;
+                } else {
+                    // Find name for current user org
+                    const found = state.orgs.find(o => o.id === targetOrgId);
+                    if(found) targetOrgName = found.name;
+                }
+
+                const { date, destination, nvsx, task, people } = importModal.parsedData;
+                
+                // Use selected date from Dashboard, ignore Excel date if needed, or use logic
+                // Here we simply use the currently selected dashboard date
+                const dateKey = state.currentDateKey;
+                
+                try {
+                    const batch = db.batch();
+                    const collectionRef = db.collection('artifacts').doc(appId)
+                        .collection('dailyPlans').doc(dateKey)
+                        .collection('people');
+
+                    // If it's a new date, ensure the dailyPlan doc exists
+                    const planRef = db.collection('artifacts').doc(appId).collection('dailyPlans').doc(dateKey);
+                    batch.set(planRef, { 
+                        updatedAt: new Date(), 
+                        status: state.isPlanLocked ? 'Locked' : 'Draft' 
+                    }, { merge: true });
+
+                    people.forEach(p => {
+                        const newRef = collectionRef.doc();
+                        
+                        // Check warnings logic
+                        const warnings = [];
+                        if(!p.staffNo) warnings.push('Thiếu danh số');
+                        if(p.idExpiryDate) {
+                            // Simple parsing dd/mm/yyyy
+                             const parts = p.idExpiryDate.split(/[\/\-\.]/);
+                             if(parts.length === 3) {
+                                 // Assuming dd/mm/yyyy
+                                 const d = parseInt(parts[0]);
+                                 const m = parseInt(parts[1]);
+                                 const y = parseInt(parts[2].length === 2 ? '20'+parts[2] : parts[2]);
+                                 const exp = new Date(y, m-1, d);
+                                 const now = new Date();
+                                 const diffTime = exp - now;
+                                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                 if(diffDays < 0) warnings.push('CCCD Hết hạn');
+                                 else if(diffDays < 30) warnings.push('CCCD sắp hết hạn');
+                             }
+                        }
+
+                        batch.set(newRef, {
+                            ...p,
+                            destination: destination || '',
+                            nvsxNo: nvsx || '',
+                            taskDesc: task || '',
+                            orgId: targetOrgId,
+                            orgName: targetOrgName,
+                            warnings,
+                            createdAt: new Date(),
+                            importedBy: state.currentUser.email
+                        });
+                    });
+
+                    await batch.commit();
+                    
+                    utils.showToast(`Đã import thành công ${people.length} nhân sự`, 'success');
+                    importModal.close();
+                    await app.loadPlan();
+                    
+                } catch(e) {
+                    console.error(e);
+                    utils.showToast('Lỗi lưu dữ liệu: ' + e.message, 'error');
+                } finally {
+                    utils.toggleLoader(false);
+                }
+            }
+        };
+
         const userModal = {
             open: () => {
                 document.getElementById('u_email').value = '';
