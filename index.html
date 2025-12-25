@@ -72,8 +72,11 @@
             </div>
             <form id="loginForm" class="space-y-5">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Email</label>
-                    <input type="email" id="email" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none" placeholder="name@xnxl.com" required>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Tài khoản</label>
+                    <div class="relative">
+                        <input type="text" id="email" class="w-full border border-slate-300 rounded-lg pl-4 pr-28 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none" placeholder="Nhập user..." required>
+                        <span class="absolute right-0 top-0 bottom-0 px-4 py-3 bg-slate-100 text-slate-500 border-l border-slate-300 rounded-r-lg flex items-center text-sm font-bold tracking-wide">@xnxl.com</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Mật khẩu</label>
@@ -612,7 +615,11 @@
 
                 document.getElementById('loginForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const email = document.getElementById('email').value;
+                    let email = document.getElementById('email').value.trim();
+                    // AUTO ADD DOMAIN IF MISSING
+                    if (!email.includes('@')) {
+                        email += '@xnxl.com';
+                    }
                     const pass = document.getElementById('password').value;
                     try {
                         await auth.signInWithEmailAndPassword(email, pass);
@@ -1800,7 +1807,6 @@
             },
             
             save: async () => {
-                if(!editModal.currentPersonId) return;
                 utils.toggleLoader(true, "Đang lưu...");
                 
                 const updatedData = {
