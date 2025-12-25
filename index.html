@@ -299,12 +299,15 @@
     <div id="userModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
-                <h3 class="font-bold text-slate-800 text-sm">Thêm User Mới</h3>
+                <h3 class="font-bold text-slate-800 text-sm"><span id="userModalTitle">Thêm User Mới</span></h3>
                 <button onclick="userModal.close()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5 space-y-3">
+                <input type="hidden" id="u_id">
                 <input type="email" id="u_email" class="w-full border rounded p-2 text-sm" placeholder="Email đăng nhập">
-                <input type="text" id="u_password" class="w-full border rounded p-2 text-sm" placeholder="Mật khẩu">
+                <div id="u_passwordWrapper">
+                    <input type="text" id="u_password" class="w-full border rounded p-2 text-sm" placeholder="Mật khẩu">
+                </div>
                 <input type="text" id="u_name" class="w-full border rounded p-2 text-sm" placeholder="Tên hiển thị">
                 <select id="u_role" class="w-full border rounded p-2 text-sm" onchange="userModal.toggleOrgSelect()">
                     <option value="workshop">User (Xưởng)</option>
@@ -316,7 +319,7 @@
             </div>
             <div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-lg">
                 <button onclick="userModal.close()" class="px-3 py-1.5 bg-white border rounded text-xs font-medium hover:bg-slate-50">Hủy</button>
-                <button onclick="userManager.createUser()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold">Tạo User</button>
+                <button onclick="userModal.save()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold">Lưu</button>
             </div>
         </div>
     </div>
@@ -456,7 +459,8 @@
             orgs: [],
             isPlanLocked: false,
             currentPlanPeople: [],
-            unsubscribePlan: null
+            unsubscribePlan: null,
+            users: [] // NEW: Store users list for edit lookup
         };
 
         const utils = {
@@ -491,7 +495,6 @@
             cleanString: (str) => (str || '').toString().trim()
         };
 
-        // NEW HELPER for Strict Public Path
         const getPublicColl = (name) => db.collection('artifacts').doc(appId).collection('public').doc('data').collection(name);
 
         const masterDataManager = {
@@ -555,7 +558,6 @@
                 newPeople.forEach(np => {
                     const found = currentPeople.find(cp => {
                         if (isEditId && cp.id === isEditId) return false;
-                        // Strict check by StaffNo OR IdNo
                         return (np.staffNo && cp.staffNo === np.staffNo) || (np.idNo && cp.idNo === np.idNo);
                     });
                     if (found) {
@@ -571,25 +573,78 @@
         };
 
         const userModal = {
-            open: () => {
-                document.getElementById('u_email').value = ''; document.getElementById('u_password').value = ''; document.getElementById('u_name').value = '';
+            open: (userId = null) => {
+                const titleEl = document.getElementById('userModalTitle');
+                if (userId) {
+                    // Edit Mode
+                    const user = state.users.find(u => u.id === userId);
+                    if (!user) return;
+                    document.getElementById('u_id').value = userId;
+                    document.getElementById('u_email').value = user.email;
+                    document.getElementById('u_email').disabled = true;
+                    document.getElementById('u_email').classList.add('bg-gray-100');
+                    document.getElementById('u_passwordWrapper').classList.add('hidden');
+                    document.getElementById('u_name').value = user.displayName || '';
+                    document.getElementById('u_role').value = user.role;
+                    titleEl.innerText = "Sửa thông tin User";
+                } else {
+                    // Create Mode
+                    document.getElementById('u_id').value = '';
+                    document.getElementById('u_email').value = '';
+                    document.getElementById('u_email').disabled = false;
+                    document.getElementById('u_email').classList.remove('bg-gray-100');
+                    document.getElementById('u_password').value = '';
+                    document.getElementById('u_passwordWrapper').classList.remove('hidden');
+                    document.getElementById('u_name').value = '';
+                    document.getElementById('u_role').value = 'workshop';
+                    titleEl.innerText = "Thêm User Mới";
+                }
                 userModal.toggleOrgSelect();
-                document.getElementById('userModal').classList.remove('hidden'); document.getElementById('userModal').classList.add('flex');
+                // Set org based on edit data or default
+                if (userId) {
+                    const user = state.users.find(u => u.id === userId);
+                    if (user && user.role !== 'dispatcher') {
+                         document.getElementById('u_orgId').value = user.orgId;
+                    }
+                }
+                document.getElementById('userModal').classList.remove('hidden'); 
+                document.getElementById('userModal').classList.add('flex');
             },
-            close: () => { document.getElementById('userModal').classList.add('hidden'); document.getElementById('userModal').classList.remove('flex'); },
+            close: () => { 
+                document.getElementById('userModal').classList.add('hidden'); 
+                document.getElementById('userModal').classList.remove('flex'); 
+            },
             toggleOrgSelect: () => {
                 const role = document.getElementById('u_role').value;
                 document.getElementById('u_orgWrapper').classList.toggle('hidden', role === 'dispatcher');
+            },
+            save: () => {
+                const uid = document.getElementById('u_id').value;
+                if (uid) {
+                    userManager.updateUser(uid);
+                } else {
+                    userManager.createUser();
+                }
             }
         };
 
         const userManager = {
             loadUsers: async () => {
                 const snap = await db.collection('artifacts').doc(appId).collection('users').get();
-                document.getElementById('userListBody').innerHTML = snap.docs.map(doc => {
-                    const u = doc.data();
+                state.users = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                document.getElementById('userListBody').innerHTML = state.users.map(u => {
                     const roleBadge = u.role === 'dispatcher' ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">Admin</span>' : '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">User</span>';
-                    return `<tr class="hover:bg-slate-50"><td class="px-4 py-2">${u.email}</td><td class="px-4 py-2 font-medium">${u.displayName || '-'}</td><td class="px-4 py-2">${roleBadge}</td><td class="px-4 py-2 text-slate-500">${u.orgId || 'XNXL'}</td><td class="px-4 py-2 text-right"><button onclick="userManager.sendResetEmail('${u.email}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Reset Pass</button><button onclick="userManager.deleteUserDoc('${doc.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button></td></tr>`;
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2">${u.email}</td>
+                        <td class="px-4 py-2 font-medium">${u.displayName || '-'}</td>
+                        <td class="px-4 py-2">${roleBadge}</td>
+                        <td class="px-4 py-2 text-slate-500">${u.orgId || 'XNXL'}</td>
+                        <td class="px-4 py-2 text-right">
+                            <button onclick="userModal.open('${u.id}')" class="text-slate-500 hover:text-blue-600 mr-2" title="Sửa"><i class="fas fa-edit"></i></button>
+                            <button onclick="userManager.sendResetEmail('${u.email}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Reset Pass</button>
+                            <button onclick="userManager.deleteUserDoc('${u.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
                 }).join('');
             },
             createUser: async () => {
@@ -607,6 +662,27 @@
                     await secondaryApp.delete();
                     utils.showToast(`Đã tạo user ${email}`, 'success'); userModal.close(); userManager.loadUsers();
                 } catch (e) { utils.showToast(e.message, 'error'); } finally { utils.toggleLoader(false); }
+            },
+            updateUser: async (uid) => {
+                const name = document.getElementById('u_name').value.trim();
+                const role = document.getElementById('u_role').value;
+                const orgId = role === 'dispatcher' ? 'XNXL' : document.getElementById('u_orgId').value;
+                
+                utils.toggleLoader(true, 'Đang cập nhật...');
+                try {
+                    await db.collection('artifacts').doc(appId).collection('users').doc(uid).update({
+                        displayName: name,
+                        role: role,
+                        orgId: orgId
+                    });
+                    utils.showToast('Đã cập nhật thông tin user', 'success');
+                    userModal.close();
+                    userManager.loadUsers();
+                } catch(e) {
+                    utils.showToast(e.message, 'error');
+                } finally {
+                    utils.toggleLoader(false);
+                }
             },
             sendResetEmail: async (email) => { if(confirm(`Gửi email đặt lại mật khẩu cho ${email}?`)) auth.sendPasswordResetEmail(email).then(() => utils.showToast('Đã gửi email reset pass', 'success')).catch(e => utils.showToast(e.message, 'error')); },
             deleteUserDoc: async (uid) => { if(confirm('Xóa user này?')) db.collection('artifacts').doc(appId).collection('users').doc(uid).delete().then(() => { utils.showToast('Đã xóa profile', 'success'); userManager.loadUsers(); }).catch(e => utils.showToast(e.message, 'error')); }
@@ -1154,7 +1230,9 @@
                 try {
                     const targets = state.currentPlanPeople.filter(p => p.destination === oldName);
                     if (targets.length === 0) return utils.showToast("Không tìm thấy nhân sự nào", "error");
-                    const batch = db.batch(); const col = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
+                    const batch = db.batch(); 
+                    // UPDATED PATH: Use public/data/dailyPlans
+                    const col = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
                     targets.forEach(p => batch.update(col.doc(p.id), { destination: newName.trim(), updatedBy: state.currentUser.email, updatedAt: new Date() }));
                     await batch.commit(); utils.showToast(`Đã đổi tên giàn cho ${targets.length} nhân sự`, 'success');
                 } catch (e) { utils.showToast("Lỗi: " + e.message, "error"); } finally { utils.toggleLoader(false); }
@@ -1175,7 +1253,9 @@
                 if(state.currentPlanPeople.length === 0 || !confirm("CẢNH BÁO: Xóa TOÀN BỘ danh sách?") || !confirm("Chắc chắn xóa?")) return;
                 utils.toggleLoader(true, 'Đang xóa...');
                 try {
-                    const batch = db.batch(); const col = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
+                    const batch = db.batch(); 
+                    // UPDATED PATH: Use public/data/dailyPlans
+                    const col = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
                     let targets = state.currentPlanPeople; if(state.userRole !== 'dispatcher') targets = targets.filter(p => p.orgId === state.userOrgId);
                     targets.forEach(p => batch.delete(col.doc(p.id))); await batch.commit(); utils.showToast(`Đã xóa ${targets.length} nhân sự`, "success");
                 } catch(e) { utils.showToast("Lỗi: " + e.message, "error"); } finally { utils.toggleLoader(false); }
@@ -1188,6 +1268,7 @@
             toggleLockPlan: async () => {
                 if(state.userRole !== 'dispatcher') return;
                 const s = state.isPlanLocked ? 'Draft' : 'Locked';
+                // UPDATED PATH: Use public/data/dailyPlans
                 await getPublicColl('dailyPlans').doc(state.currentDateKey).set({ status: s, lockedAt: new Date(), lockedBy: state.currentUser.email }, { merge: true });
                 utils.showToast(`Đã ${s === 'Locked' ? 'KHÓA' : 'MỞ'} ngày đăng ký`, 'success');
                 app.loadPlan(); // Manually reload status
@@ -1197,8 +1278,16 @@
             renderOrgList: () => { document.getElementById('orgList').innerHTML = state.orgs.map(o => `<li class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100 text-xs"><span>${o.name}</span><button onclick="app.deleteOrg('${o.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></li>`).join(''); },
             addOrg: async () => { const n = document.getElementById('newOrgName').value.trim(); if(n) { await getPublicColl('organizations').doc(n).set({name:n, createdAt: new Date()}); document.getElementById('newOrgName').value=''; app.loadOrgs(); app.renderOrgList(); } },
             deleteOrg: async (id) => { if(confirm('Xóa đơn vị này?')) { await getPublicColl('organizations').doc(id).delete(); app.loadOrgs(); app.renderOrgList(); } },
-            loadSignatureConfig: async () => { const d = await getPublicColl('settings').doc('signature').get(); if(d.exists) { const v = d.data(); document.getElementById('sigApprover').value = v.approver||''; document.getElementById('sigApproverName').value = v.approverName||''; } },
-            saveSettings: async () => { await getPublicColl('settings').doc('signature').set({ approver: document.getElementById('sigApprover').value, approverName: document.getElementById('sigApproverName').value }); utils.showToast('Đã lưu cấu hình'); },
+            loadSignatureConfig: async () => { 
+                // UPDATED PATH: Use public/data/settings
+                const d = await getPublicColl('settings').doc('signature').get(); 
+                if(d.exists) { const v = d.data(); document.getElementById('sigApprover').value = v.approver||''; document.getElementById('sigApproverName').value = v.approverName||''; } 
+            },
+            saveSettings: async () => { 
+                // UPDATED PATH: Use public/data/settings
+                await getPublicColl('settings').doc('signature').set({ approver: document.getElementById('sigApprover').value, approverName: document.getElementById('sigApproverName').value }); 
+                utils.showToast('Đã lưu cấu hình'); 
+            },
             
             generateDocx: async (peopleData, dateDisplayString) => {
                 let sig = { approver: 'TRƯỞNG BAN TTĐĐSX', approverName: '' };
@@ -1221,17 +1310,18 @@
                                 new Paragraph({ children: [new TextRun({ text: "XNXL", bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER }),
                                 new Paragraph({ text: "" }),
                                 new Paragraph({ children: [new TextRun({ text: "Số: ...../.....-CV-XL", size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER })
-                            ], borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} }, width: { size: 40, type: WidthType.PERCENTAGE } }),
+                            ], borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }, width: { size: 40, type: WidthType.PERCENTAGE } }),
                             new TableCell({ children: [
                                 new Paragraph({ children: [new TextRun({ text: "CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER }),
                                 new Paragraph({ children: [new TextRun({ text: "Độc lập – Tự do – Hạnh phúc", bold: true, underline: { type: "single" }, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER }),
                                 new Paragraph({ text: "" }),
                                 new Paragraph({ children: [new TextRun({ text: `TPHCM, ngày ${dd} tháng ${mm} năm ${yyyy}`, size: SZ_S, italics: true, font: FONT })], alignment: AlignmentType.CENTER })
-                            ], borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} }, width: { size: 60, type: WidthType.PERCENTAGE } })
-                        ] })], width: { size: 100, type: WidthType.PERCENTAGE }
+                            ], borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }, width: { size: 60, type: WidthType.PERCENTAGE } })
+                        ] })], width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }
                     }),
                     new Paragraph({ text: "" }),
-                    new Paragraph({ children: [ new TextRun({ text: "Kính gửi:  Trưởng ban ban TTĐĐSX", size: SZ_N, font: FONT }) ], alignment: AlignmentType.CENTER }),
+                    new Paragraph({ children: [ new TextRun({ text: "Kính gửi:  ", size: SZ_N, font: FONT }), new TextRun({ text: "Trưởng ban ban TTĐĐSX", bold: true, size: SZ_N, font: FONT }) ], alignment: AlignmentType.CENTER }),
                     new Paragraph({ text: "" }),
                     new Paragraph({ children: [ new TextRun({ text: "ĐƠN ĐĂNG KÝ ĐI RA CÔNG TRÌNH BIỂN", bold: true, size: 28, font: FONT }) ], alignment: AlignmentType.CENTER }),
                     new Paragraph({ text: "" }),
@@ -1254,21 +1344,39 @@
                     }
                 });
 
-                children.push(new Paragraph({ children: [new TextRun({ text: `Danh sách nhân viên: `, size: SZ_N, font: FONT })] }), new Paragraph({ text: "" }));
+                children.push(new Paragraph({ children: [new TextRun({ text: `Danh sách người đi: `, size: SZ_N, font: FONT })] }), new Paragraph({ text: "" }));
 
                 const tableRows = [new TableRow({ children: ["Số TT", "Họ và tên", "Chức danh", "Đơn vị", "Danh số"].map(t => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t, bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER })], verticalAlign: "center", shading: { fill: "FFFFFF" } })), tableHeader: true })];
 
                 Object.keys(grouped).forEach(dest => {
                     let dName = dest; if(!dest.toLowerCase().startsWith('giàn') && !dest.toLowerCase().startsWith('gian')) dName = `GIÀN ${dest}`;
-                    tableRows.push(new TableRow({ height: { value: 400, rule: HeightRule.AT_LEAST }, children: [new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: dName, bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER })], columnSpan: 5, shading: { fill: "D9D9D9" }, verticalAlign: "center" })] }));
+                    
+                    tableRows.push(new TableRow({ 
+                        height: { value: 400, rule: HeightRule.AT_LEAST }, 
+                        children: [
+                            new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, shading: { fill: "D9D9D9" }, children: [] }), // Empty cell 1
+                            new TableCell({ 
+                                children: [
+                                    new Paragraph({ 
+                                        children: [new TextRun({ text: dName, bold: true, size: SZ_S, font: FONT })],
+                                        alignment: AlignmentType.LEFT 
+                                    })
+                                ], 
+                                columnSpan: 4, 
+                                shading: { fill: "D9D9D9" },
+                                verticalAlign: "center"
+                            })
+                        ] 
+                    }));
+                    
                     grouped[dest].forEach((p, i) => {
                         tableRows.push(new TableRow({
                             height: { value: 400, rule: HeightRule.AT_LEAST },
                             children: [
                                 new TableCell({ children: [new Paragraph({ text: (i+1).toString(), alignment: AlignmentType.CENTER, size: SZ_S, font: FONT })], verticalAlign: "center" }),
                                 new TableCell({ children: [new Paragraph({ text: p.fullName, size: SZ_S, font: FONT })], verticalAlign: "center" }),
-                                new TableCell({ children: [new Paragraph({ text: p.title, size: SZ_S, font: FONT })], verticalAlign: "center" }),
-                                new TableCell({ children: [new Paragraph({ text: p.orgName, size: SZ_S, font: FONT })], verticalAlign: "center" }),
+                                new TableCell({ children: [new Paragraph({ text: p.title, size: SZ_S, font: FONT, alignment: AlignmentType.CENTER })], verticalAlign: "center" }),
+                                new TableCell({ children: [new Paragraph({ text: p.orgName, size: SZ_S, font: FONT, alignment: AlignmentType.CENTER })], verticalAlign: "center" }),
                                 new TableCell({ children: [new Paragraph({ text: p.staffNo, alignment: AlignmentType.CENTER, size: SZ_S, font: FONT })], verticalAlign: "center" }),
                             ]
                         }));
@@ -1286,14 +1394,15 @@
                             new Paragraph({ text: "" }), new Paragraph({ children: [new TextRun({ text: "- Điều độ – XNKT:", size: SZ_S, font: FONT })], indent: { left: 100 } }),
                             new Paragraph({ text: "" }), new Paragraph({ children: [new TextRun({ text: "- Phòng kỹ thuật :", size: SZ_S, font: FONT })], indent: { left: 100 } }),
                             new Paragraph({ text: "" }), new Paragraph({ children: [new TextRun({ text: "- Điều độ XNXL:                            Số đt: 8626", size: SZ_S, font: FONT })], indent: { left: 100 } }),
-                        ], borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} }, width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: "bottom" }),
+                        ], borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }, width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: "bottom" }),
                         new TableCell({ children: [
                             new Paragraph({ children: [new TextRun({ text: sig.approver || 'TRƯỞNG BAN TTĐĐSX', bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER }),
                             new Paragraph({ children: [new TextRun({ text: "(Ký, ghi rõ họ tên)", italics: true, size: 20, font: FONT })], alignment: AlignmentType.CENTER }),
                             new Paragraph({ text: "" }), new Paragraph({ text: "" }), new Paragraph({ text: "" }), new Paragraph({ text: "" }), 
                             new Paragraph({ children: [new TextRun({ text: sig.approverName || '', bold: true, size: SZ_S, font: FONT })], alignment: AlignmentType.CENTER })
-                        ], borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} }, width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: "top" })
-                    ] })], width: { size: 100, type: WidthType.PERCENTAGE }
+                        ], borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }, width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: "top" })
+                    ] })], width: { size: 100, type: WidthType.PERCENTAGE },
+                    borders: { top: {style: BorderStyle.NONE, size: 0, color: "auto"}, bottom: {style: BorderStyle.NONE, size: 0, color: "auto"}, left: {style: BorderStyle.NONE, size: 0, color: "auto"}, right: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideVertical: {style: BorderStyle.NONE, size: 0, color: "auto"}, insideHorizontal: {style: BorderStyle.NONE, size: 0, color: "auto"} }
                 }));
 
                 const blob = await Packer.toBlob(new Document({ sections: [{ properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children }] }));
