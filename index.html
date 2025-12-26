@@ -41,7 +41,22 @@
             letter-spacing: 0.05em;
             box-shadow: 0 1px 0 #e2e8f0;
         }
-    </style>
+    
+        /* Collapsible task content (10 lines) */
+        .task-collapsed { 
+            max-height: 11.5em; 
+            overflow: hidden; 
+            position: relative; 
+        }
+        .task-collapsed::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 2.6em;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(239,246,255,1));
+            pointer-events: none;
+        }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
 
@@ -393,9 +408,16 @@
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fas fa-file-excel text-emerald-600"></i>Import Danh sách
                 </h3>
-                <button onclick="importModal.close()" class="text-slate-400 hover:text-slate-600 transition" aria-label="Đóng">
-                    <i class="fas fa-times text-lg"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <a href="maudangkydibien.xlsx" download class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition" title="Tải file Excel mẫu (maudangkydibien.xlsx)">
+                        <i class="fas fa-download text-slate-500"></i>
+                        <span class="hidden sm:inline">Tải mẫu Excel</span>
+                        <span class="sm:hidden">Mẫu</span>
+                    </a>
+                    <button onclick="importModal.close()" class="text-slate-400 hover:text-slate-600 transition" aria-label="Đóng">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="p-5 overflow-y-auto flex-grow space-y-4">
@@ -404,60 +426,65 @@
                     <select id="importOrgSelect" class="w-full border rounded-lg px-3 py-2 mt-1 bg-white"></select>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Dropzone -->
-                    <div class="relative group md:col-span-1 border-2 border-dashed border-slate-300 rounded-2xl p-3 min-h-[96px] flex flex-col items-center justify-center text-center bg-white hover:border-blue-400 hover:bg-blue-50/30 transition">
+                                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Dropzone (compact) -->
+                    <div class="relative group md:col-span-2 border-2 border-dashed border-slate-300 rounded-xl p-2 h-[64px] flex flex-col items-center justify-center text-center bg-white hover:border-blue-400 hover:bg-blue-50/30 transition">
                         <input type="file" id="excelFile" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".xlsx, .xls">
-                        <div class="group-hover:scale-[1.02] transition transform duration-200">
-                            <i class="fas fa-cloud-upload-alt text-2xl text-slate-300 mb-1"></i>
+                        <div class="group-hover:scale-[1.01] transition transform duration-200">
+                            <i class="fas fa-cloud-upload-alt text-lg text-slate-300 mb-1"></i>
                             <p class="text-xs font-bold text-slate-700">Chọn file Excel</p>
-                            <p class="text-[11px] text-slate-500 mt-1">Kéo thả hoặc bấm để chọn</p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Kéo thả hoặc bấm</p>
                         </div>
-                        <p id="fileNameDisplay" class="text-blue-600 font-bold mt-2 text-[11px] break-all"></p>
+                        <p id="fileNameDisplay" class="text-blue-600 font-bold mt-1 text-[11px] break-all"></p>
                     </div>
 
-                    <!-- Summary + status -->
-                    <div id="parseResult" class="hidden md:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <!-- Summary / Meta -->
+                    <div id="parseMeta" class="hidden md:col-span-10 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2">
                             <div>
                                 <span class="text-slate-500 text-xs uppercase font-bold">Ngày ĐK</span>
-                                <div id="prevDate" class="font-semibold text-slate-800">--</div>
+                                <input id="prevDateInput" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white" placeholder="dd/mm/yyyy" value="" />
                             </div>
                             <div>
                                 <span class="text-slate-500 text-xs uppercase font-bold">Nơi đến</span>
-                                <div id="prevDest" class="font-semibold text-slate-800">--</div>
+                                <input id="prevDestInput" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white" placeholder="Bắt buộc nhập Nơi đến (Giàn/Tàu)..." value="" />
                             </div>
-                            <div class="col-span-2">
+                            <div class="sm:col-span-2">
                                 <span class="text-slate-500 text-xs uppercase font-bold">NVSX</span>
-                                <div id="prevNVSX" class="font-semibold text-slate-800">--</div>
+                                <input id="prevNVSXInput" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white" placeholder="VD: 501-25; 502-25; 503-25" value="" />
                             </div>
-                            <div class="col-span-2">
+                            <div class="sm:col-span-2">
                                 <span class="text-slate-500 text-xs uppercase font-bold">Công việc</span>
-                                <div id="prevTask" class="whitespace-pre-wrap bg-white rounded-lg border border-slate-200 text-slate-700 font-mono p-2 max-h-24 overflow-y-auto">--</div>
+                                <textarea id="prevTaskInput" rows="5" class="mt-1 w-full border border-slate-200 bg-white rounded-xl text-slate-700 font-mono p-3 text-sm leading-relaxed resize-y" placeholder="Nội dung công việc..."></textarea>
+                                <p class="text-[11px] text-slate-500 mt-2 italic">Có thể sửa Ngày ĐK / Nơi đến / NVSX / Công việc trước khi bấm <b>Xác nhận Import</b>.</p>
                             </div>
                         </div>
 
-                        <div class="flex justify-between items-center border-t border-slate-200 mt-3 pt-3">
+                        <div class="flex flex-wrap justify-between items-center border-t border-slate-200 mt-3 pt-3 gap-2">
                             <span class="text-slate-700 font-semibold">Tìm thấy: <strong id="prevCount" class="text-blue-600 text-lg">0</strong> người</span>
                             <span id="prevWarning" class="text-red-600 font-bold hidden text-xs bg-red-50 px-2 py-1 rounded-lg border border-red-100">Sai ngày!</span>
                         </div>
+                    </div>
 
-                        <!-- People list -->
-                        <div class="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                            <div class="max-h-72 overflow-y-auto">
-                                <table class="w-full text-xs">
-                                    <thead class="bg-slate-50 sticky top-0">
-                                        <tr class="text-slate-600">
-                                            <th class="px-3 py-2 text-left w-12">#</th>
-                                            <th class="px-3 py-2 text-left w-28">Danh số</th>
-                                            <th class="px-3 py-2 text-left">Họ và tên</th>
-                                            <th class="px-3 py-2 text-left w-36">Chức danh</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="prevPeopleBody" class="divide-y divide-slate-100"></tbody>
-                                </table>
-                            </div>
-                            <div id="prevPeopleMore" class="hidden px-3 py-2 text-[11px] text-slate-500 bg-slate-50 border-t border-slate-100"></div>
+                    <!-- People list (full-width) -->
+                    <div id="parsePeopleWrap" class="hidden md:col-span-12 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                            <div class="text-sm font-bold text-slate-700">Danh sách nhân sự tìm thấy</div>
+                            <div id="prevPeopleMore" class="hidden text-[11px] text-slate-500"></div>
+                        </div>
+                        <div class="max-h-[46vh] overflow-y-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-slate-50 sticky top-0">
+                                    <tr class="text-slate-600">
+                                        <th class="px-3 py-2 text-left w-12">#</th>
+                                        <th class="px-3 py-2 text-left w-28">Danh số</th>
+                                        <th class="px-3 py-2 text-left">Họ và tên</th>
+                                        <th class="px-3 py-2 text-left w-40">Chức danh</th>
+                                        <th class="px-3 py-2 text-left w-44">Đơn vị</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prevPeopleBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -482,6 +509,7 @@
             </div>
             <div class="p-5 space-y-4">
                 <input type="hidden" id="groupEditOldName">
+                <input type="hidden" id="groupEditOldKey">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tên giàn / tàu</label>
                     <input id="groupEditDest" type="text" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -673,6 +701,7 @@
                 <button onclick="warningCenter.close()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2">&times;</button>
             </div>
             <div class="p-4 space-y-3">
+                        ${isInconsistent ? `<div class=\"text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2\">Dữ liệu không đồng nhất, hãy bấm <b>Sửa giàn/NVSX/CV</b> để chốt lại (vẫn có thể Export).</div>` : ``}
                 <div class="flex flex-col md:flex-row md:items-center gap-3">
                     <div class="flex-1">
                         <input id="warningSearch" type="text" placeholder="Tìm theo tên / danh số / giàn / đơn vị / loại cảnh báo..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -799,6 +828,11 @@
             formatTimeShort: (dateObj) => { if(!dateObj) return ''; const d = new Date(dateObj); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; },
             processExcelDate: (input) => {
                 if (!input) return '';
+                if (input instanceof Date) {
+                    if (!isNaN(input.getTime())) {
+                        return `${String(input.getDate()).padStart(2,'0')}/${String(input.getMonth()+1).padStart(2,'0')}/${input.getFullYear()}`;
+                    }
+                }
                 if (typeof input === 'number') {
                     const date = new Date(Math.round((input - 25569) * 86400 * 1000));
                     if (!isNaN(date.getTime())) return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
@@ -822,7 +856,162 @@
                 if(text) document.getElementById('loadingText').innerText = text;
                 show ? el.classList.remove('hidden') : el.classList.add('hidden');
             },
-            cleanString: (str) => (str || '').toString().trim()
+            cleanString: (str) => (str || '').toString().trim(),
+
+            // --- NVSX / Task aggregation (dedupe & smart merge) ---
+            splitNvsxTokens: (val) => {
+                if (!val) return [];
+                return String(val)
+                    .replace(/\r/g, '')
+                    .split(/[\n;,]+/g)
+                    .map(s => s.trim())
+                    .filter(Boolean);
+            },
+            aggregateGroupNvsxAndTasks: (group) => {
+                const nvsxOrder = [];
+                const seenN = new Set();
+                const taskMap = new Map(); // code -> Set(desc)
+                const misc = new Set();
+
+                (group || []).forEach(p => {
+                    // 1) NVSX tokens from field
+                    utils.splitNvsxTokens(p?.nvsxNo).forEach(code => {
+                        const c = code.trim();
+                        if (!c || seenN.has(c)) return;
+                        seenN.add(c);
+                        nvsxOrder.push(c);
+                    });
+
+                    // 2) Task lines
+                    const raw = (p?.taskDesc || '').toString().replace(/\r/g, '');
+                    if (!raw) return;
+                    raw.split('\n').forEach(line => {
+                        const l = (line || '').trim();
+                        if (!l) return;
+
+                        // Try parse "CODE: description" or "CODE - description"
+                        let m = l.match(/^(\d{3}-\d{2}(?:bs\d+)?)\s*:\s*(.+)$/i);
+                        if (!m) m = l.match(/^([0-9A-Za-z][0-9A-Za-z\-\/.]*)\s*:\s*(.+)$/);
+                        if (!m) m = l.match(/^([0-9A-Za-z][0-9A-Za-z\-\/.]*)\s*-\s*(.+)$/);
+                        if (m) {
+                            const code = (m[1] || '').trim();
+                            const desc = (m[2] || '').trim();
+                            if (!code || !desc) return;
+
+                            if (!taskMap.has(code)) taskMap.set(code, new Set());
+                            taskMap.get(code).add(desc);
+                        } else {
+                            misc.add(l);
+                        }
+                    });
+                });
+
+                // Merge codes: NVSX order first, then codes only from taskMap
+                const codesOnlyInTask = [...taskMap.keys()].filter(c => !seenN.has(c)).sort();
+                const mergedCodes = [...nvsxOrder, ...codesOnlyInTask];
+
+                // Build NVSX string
+                const nvsxStr = mergedCodes.filter(Boolean).join('; ');
+
+                // Build task lines (dedupe)
+                const taskLines = [];
+                mergedCodes.forEach(code => {
+                    if (!taskMap.has(code)) return;
+                    const descs = [...taskMap.get(code)];
+                    if (descs.length === 1) taskLines.push(`${code}: ${descs[0]}`);
+                    else taskLines.push(`${code}: ${descs.join(' / ')}`);
+                });
+
+                // Add misc lines (dedupe)
+                [...misc].forEach(l => taskLines.push(l));
+
+                return { nvsxStr: nvsxStr || '', taskLines };
+            }
+            ,
+            normalizeNvsxInput: (val) => {
+                // Accept separators: ';' ',' newline
+                const tokens = utils.splitNvsxTokens(val);
+                // Preserve original order but dedupe
+                const seen = new Set();
+                const out = [];
+                tokens.forEach(t => { if (!seen.has(t)) { seen.add(t); out.push(t); } });
+                return out.join('; ');
+            },
+            normalizeTaskText: (val) => {
+                if (val == null) return '';
+                return String(val).replace(/\r/g, '').trim();
+            },
+            normalizeDestinationKey: (dest) => {
+                const raw = (dest ?? '').toString().trim();
+                if (!raw) return '';
+                const n = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+                if (n === 'chua xac dinh') return '';
+                return raw;
+            },
+            destinationDisplay: (dest) => {
+                const key = utils.normalizeDestinationKey(dest);
+                return key || 'Chưa xác định';
+            },
+            getGroupFinalMeta: (group) => {
+                // Single source of truth = latest updated record (usually after Admin "Sửa giàn/NVSX/CV").
+                // If no updatedAt, fall back to createdAt/importedAt ordering. If still missing, fall back to union aggregation.
+                const pickTime = (p) => {
+                    const t = p?.updatedAt || p?.createdAt || p?.importedAt || p?.importTime || null;
+                    try {
+                        if (!t) return 0;
+                        if (t instanceof Date) return t.getTime();
+                        if (typeof t === 'number') return t;
+                        if (typeof t === 'string') return Date.parse(t) || 0;
+                        if (t?.toDate) return t.toDate().getTime();
+                        if (t?.seconds) return (t.seconds * 1000) + Math.floor((t.nanoseconds||0)/1e6);
+                    } catch(e) {}
+                    return 0;
+                };
+
+                let latest = null;
+                let latestTs = -1;
+                (group || []).forEach(p => {
+                    const ts = pickTime(p);
+                    if (ts > latestTs) { latestTs = ts; latest = p; }
+                });
+
+                let nvsxStr = utils.normalizeNvsxInput(latest?.nvsxNo || '');
+                let taskText = utils.normalizeTaskText(latest?.taskDesc || '');
+
+                // If latest is empty, fall back to union aggregation so UI still shows something.
+                if (!nvsxStr && !taskText) {
+                    const agg = utils.aggregateGroupNvsxAndTasks(group || []);
+                    nvsxStr = agg.nvsxStr || '';
+                    taskText = (agg.taskLines || []).join('\n');
+                }
+
+                const taskLines = (taskText || '').replace(/\r/g,'').split('\n').map(s => s.trim()).filter(Boolean);
+
+                // Consistency check: compare everyone vs final meta (after normalization)
+                const finalN = utils.normalizeNvsxInput(nvsxStr);
+                const finalT = utils.normalizeTaskText(taskText);
+
+                let inconsistent = false;
+                const seenN = new Set();
+                const seenT = new Set();
+                (group || []).forEach(p => {
+                    const pn = utils.normalizeNvsxInput(p?.nvsxNo || '');
+                    const pt = utils.normalizeTaskText(p?.taskDesc || '');
+                    if (pn) seenN.add(pn);
+                    if (pt) seenT.add(pt);
+                    if ((pn && pn !== finalN) || (pt && pt !== finalT)) inconsistent = true;
+                });
+
+                return {
+                    nvsxStr: finalN || '',
+                    taskText: finalT || '',
+                    taskLines,
+                    inconsistent,
+                    distinctNvsx: [...seenN],
+                    distinctTasks: [...seenT]
+                };
+            }
+
         };
 
 
@@ -1535,10 +1724,21 @@ render() {
 
         const importModal = {
             parsedData: null,
+            getSelectedOrgName: () => {
+                try {
+                    if (state.userRole === 'dispatcher') {
+                        const sel = document.getElementById('importOrgSelect');
+                        return sel && sel.selectedIndex >= 0 ? (sel.options[sel.selectedIndex].text || '') : '';
+                    }
+                    const found = state.orgs.find(o => o.id === state.userOrgId);
+                    return found ? found.name : (state.userOrgId || '');
+                } catch (e) { return ''; }
+            },
             open: () => {
-                document.getElementById('excelFile').value = ''; document.getElementById('fileNameDisplay').innerText = '';
-                document.getElementById('parseResult').classList.add('hidden'); document.getElementById('btnConfirmImport').disabled = true;
-                document.getElementById('importModal').classList.remove('hidden'); document.getElementById('importModal').classList.add('flex');
+                document.getElementById('excelFile').value = ''; document.getElementById('fileNameDisplay').innerText = ''; document.getElementById('prevDateInput').value=''; document.getElementById('prevDestInput').value=''; document.getElementById('prevNVSXInput').value=''; document.getElementById('prevTaskInput').value='';
+                document.getElementById('parseMeta').classList.add('hidden'); document.getElementById('parsePeopleWrap').classList.add('hidden'); document.getElementById('btnConfirmImport').disabled = true;
+                document.getElementById('importModal').classList.remove('hidden'); document.getElementById('importModal').classList.add('flex'); const sel = document.getElementById('importOrgSelect'); if(sel && !sel._boundChange){ sel.addEventListener('change', ()=>{ if(importModal.parsedData){ importModal.renderPeoplePreview(importModal.parsedData.people);} }); sel._boundChange=true; } const destIn=document.getElementById('prevDestInput'); if(destIn && !destIn._boundInput){ destIn.addEventListener('input', ()=>destIn.classList.remove('border-red-400')); destIn._boundInput=true; }
+                const dateIn=document.getElementById('prevDateInput'); if(dateIn && !dateIn._boundInput){ dateIn.addEventListener('input', ()=>{ const sel=document.getElementById('planDateInput')?.value; if(sel){ const [y,m,d]=sel.split('-'); const expect=`${d}/${m}/${y}`; const w=document.getElementById('prevWarning'); if(w){ if(dateIn.value.trim() && dateIn.value.trim()!==expect){ w.classList.remove('hidden'); w.title=`File: ${dateIn.value} khác Ngày đang chọn`; } else { w.classList.add('hidden'); } } } }); dateIn._boundInput=true; }
             },
             close: () => { document.getElementById('importModal').classList.add('hidden'); document.getElementById('importModal').classList.remove('flex'); },
             handleFile: async (e) => {
@@ -1546,15 +1746,15 @@ render() {
                 document.getElementById('fileNameDisplay').innerText = file.name; utils.toggleLoader(true, 'Đang phân tích file Excel...');
                 try {
                     const data = await importModal.parseExcel(file); importModal.parsedData = data;
-                    document.getElementById('prevDate').innerText = data.date || '--'; document.getElementById('prevDest').innerText = data.destination || '--';
-                    document.getElementById('prevNVSX').innerText = data.nvsx || '--'; document.getElementById('prevTask').innerText = data.task || '--';
+                    document.getElementById('prevDateInput').value = data.date || ''; document.getElementById('prevDestInput').value = data.destination || ''; document.getElementById('prevDestInput').classList.toggle('border-red-400', !(data.destination||'').trim());
+                    document.getElementById('prevNVSXInput').value = data.nvsx || ''; document.getElementById('prevTaskInput').value = data.task || '';
                     document.getElementById('prevCount').innerText = data.people.length;
                     importModal.renderPeoplePreview(data.people);
 
                     const selectedDate = document.getElementById('planDateInput').value; const [y, m, d] = selectedDate.split('-');
                     if(data.date && data.date !== `${d}/${m}/${y}`) { document.getElementById('prevWarning').classList.remove('hidden'); document.getElementById('prevWarning').title = `File: ${data.date} khác Ngày đang chọn`; }
                     else document.getElementById('prevWarning').classList.add('hidden');
-                    document.getElementById('parseResult').classList.remove('hidden'); document.getElementById('btnConfirmImport').disabled = data.people.length === 0;
+                    document.getElementById('parseMeta').classList.remove('hidden'); document.getElementById('parsePeopleWrap').classList.remove('hidden'); document.getElementById('btnConfirmImport').disabled = data.people.length === 0;
                 } catch (err) { utils.showToast('Lỗi đọc file: ' + err.message, 'error'); } finally { utils.toggleLoader(false); }
             },
             
@@ -1571,6 +1771,7 @@ render() {
                         <td class="px-3 py-2 font-semibold text-slate-800">${esc(p.staffNo || '')}</td>
                         <td class="px-3 py-2 text-slate-800">${esc(p.fullName || '')}</td>
                         <td class="px-3 py-2 text-slate-600">${esc(p.title || '')}</td>
+                        <td class="px-3 py-2 text-slate-500">${esc(importModal.getSelectedOrgName() || p.orgName || '')}</td>
                     </tr>
                 `).join('');
                 if (more) {
@@ -1594,16 +1795,187 @@ render() {
                     reader.onload = (e) => {
                         try {
                             const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: ''});
+                            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ''});
                             let date = '', destination = '', nvsx = '', task = '', headerRowIndex = -1;
-                            
-                            // Extract Meta
-                            if (rows[5] && rows[5][1]) { const dateMatch = rows[5][1].toString().trim().match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/); if(dateMatch) date = `${dateMatch[1].padStart(2,'0')}/${dateMatch[2].padStart(2,'0')}/${dateMatch[3]}`; }
-                            if (rows[6] && rows[6][1]) destination = rows[6][1].toString().trim().replace(/^.*:\s*/, '');
-                            if (rows[7] && rows[7][1]) { const val = rows[7][1].toString().trim(); const m = val.match(/\d{3}-\d{2}(?:BS\d+)?/gi); nvsx = m ? [...new Set(m)].join('; ') : val.replace(/^.*:\s*/, ''); }
-                            if (rows[8] && rows[8][1]) task = rows[8][1].toString().trim().replace(/^.*:\s*/, '');
 
-                            // Find Header (robust)
+                            // Prefer fixed cells for "Mẫu ĐK đi biển - Form mới" when present
+                            const __cellVal = (addr) => {
+                                try {
+                                    const c = sheet && sheet[addr];
+                                    if (!c) return '';
+                                    return (c.v !== undefined ? c.v : (c.w !== undefined ? c.w : ''));
+                                } catch (e) { return ''; }
+                            };
+                            const __d6 = __cellVal('D6');
+                            if (__d6 && !date) date = utils.processExcelDate(__d6) || '';
+                            const __d7 = __cellVal('D7');
+                            const __e7 = __cellVal('E7');
+                            if (!destination && (__d7 || __e7)) {
+                                destination = [__d7, __e7].map(v => (v ?? '').toString().trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+                            }
+                            const __d8 = __cellVal('D8');
+                            if (__d8 && !nvsx) nvsx = __d8.toString().trim();
+                            const __d9 = __cellVal('D9');
+                            if (__d9 && !task) task = __d9.toString().replace(/\r/g,'').trim();
+
+                            
+                            // Extract Meta (robust, supports Form cũ & Form mới)
+                            const __normCell = (v) => {
+                                try {
+                                    if (v === undefined || v === null) return '';
+                                    return v.toString().trim().toLowerCase()
+                                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                                        .replace(/\s+/g, ' ');
+                                } catch (e) { return ''; }
+                            };
+                            const __isEmpty = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+                            const __skipTokens = new Set(['gian','giàn','tau','tàu','t\\u00e0u','form','rev','don vi','\\u0111\\u01a1n vi','don vị','\\u0111on vi']);
+                            const __looksLikeDest = (v) => {
+                                const s = (v ?? '').toString().trim();
+                                if (!s) return false;
+                                const up = s.toUpperCase();
+                                // Common rig/ship codes: CTK-3, MSP-9, BK-14, etc.
+                                return /^(CTK|MSP|BK|BKP|CT|TB|TD|GT|GIA?N|TAU|T\\u00c0U)[\\s\\-]*\\d+/i.test(up) || /\\b(CTK|MSP|BK)[\\s\\-]*\\d+\\b/i.test(up);
+                            };
+                            const __findRightValue = (ri, ci) => {
+                                const row = rows[ri] || [];
+                                const parts = [];
+                                for (let k = ci + 1; k < row.length; k++) {
+                                    const v = row[k];
+                                    if (__isEmpty(v)) continue;
+                                    const ns = __normCell(v);
+                                    if (!ns) continue;
+                                    if (__skipTokens.has(ns)) continue;
+                                    if (typeof v === 'string' && __normCell(v).endsWith(':')) continue;
+                                    parts.push(v.toString().trim());
+                                    // if next cell looks like something else, stop; otherwise allow join of 2 cells (e.g. "GIÀN" + "CTK-3")
+                                    if (parts.length >= 1) break;
+                                }
+                                if (parts.length) return parts.join(' ').replace(/\s+/g,' ').trim();
+                                return null;
+                            };
+                            const __findByLabel = (keywords) => {
+                                for (let i = 0; i < Math.min(rows.length, 80); i++) {
+                                    const row = rows[i] || [];
+                                    for (let j = 0; j < row.length; j++) {
+                                        const cell = row[j];
+                                        const sc = __normCell(cell);
+                                        if (!sc) continue;
+                                        if (keywords.some(k => sc.includes(k))) {
+                                            const right = __findRightValue(i, j);
+                                            if (right) return right;
+                                            // If label & value are in same cell (rare)
+                                            if (typeof cell === 'string') {
+                                                const pos = cell.indexOf(':');
+                                                if (pos > -1) {
+                                                    const after = cell.slice(pos + 1).trim();
+                                                    if (after) return after;
+                                                }
+                                            }
+                                            // Fallback: search nearby cells (right/down within 2 rows)
+                                            for (let di = 0; di <= 2; di++) {
+                                                const rr = rows[i + di] || [];
+                                                for (let dj = 1; dj <= 4; dj++) {
+                                                    const v = rr[j + dj];
+                                                    if (__isEmpty(v)) continue;
+                                                    const ns = __normCell(v);
+                                                    if (__skipTokens.has(ns)) continue;
+                                                    return v;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                return null;
+                            };
+
+                            // Date
+                            if (!date) {
+                            const __dateVal = __findByLabel(['dang ky di bien ngay','dang ky ngay','ngay dk','ngay dang ky','ngay di','ngay khoi hanh']);
+                            if (__dateVal) {
+                                date = utils.processExcelDate(__dateVal) || '';
+                                if (!date && typeof __dateVal === 'string') {
+                                    const dm = __dateVal.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+                                    if (dm) {
+                                        const y = (dm[3].length === 2) ? ('20' + dm[3]) : dm[3];
+                                        date = `${dm[1].padStart(2,'0')}/${dm[2].padStart(2,'0')}/${y}`;
+                                    }
+                                }
+                            }
+                            
+                            }
+// Destination
+                            if (!destination) {
+                            let __destVal = __findByLabel(['noi den','di den','noi den gian','noi den tau','noi den:']);
+                            // Special case: destination may appear after a "GIÀN"/"TÀU" token
+                            if (__destVal && __skipTokens.has(__normCell(__destVal))) __destVal = null;
+                            if (!__destVal) {
+                                // Fallback: scan first 20 rows for a likely destination code
+                                for (let i = 0; i < Math.min(rows.length, 20) && !__destVal; i++) {
+                                    for (let j = 0; j < (rows[i] || []).length; j++) {
+                                        const v = rows[i][j];
+                                        if (__isEmpty(v)) continue;
+                                        if (typeof v === 'string' && __looksLikeDest(v)) { __destVal = v; break; }
+                                    }
+                                }
+                            }
+                            if (__destVal) destination = __destVal.toString().trim().replace(/\s+/g,' ');
+
+                            
+                            }
+// NVSX
+                            if (!nvsx) {
+                            const __nvsxVal = __findByLabel(['nhiem vu san xuat so','nhiem vu sx so','nhiem vu san xuat','nvsx']);
+                            if (__nvsxVal) {
+                                const val = __nvsxVal.toString().trim();
+                                const m = val.match(/\d{3}-\d{2}(?:bs\d+)?/gi);
+                                nvsx = m ? [...new Set(m.map(x => x.toUpperCase()))].join('; ') : val.replace(/^.*:\s*/, '');
+                            } else {
+                                // Fallback: scan first 30 rows for NVSX tokens
+                                const found = [];
+                                for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                                    for (let j = 0; j < (rows[i] || []).length; j++) {
+                                        const v = rows[i][j];
+                                        if (__isEmpty(v)) continue;
+                                        const str = v.toString();
+                                        const m = str.match(/\d{3}-\d{2}(?:bs\d+)?/gi);
+                                        if (m) found.push(...m);
+                                    }
+                                }
+                                const uniq = [...new Set(found.map(x => x.toUpperCase()))];
+                                if (uniq.length) nvsx = uniq.join('; ');
+                            }
+
+                            
+                            }
+// Task / Work content
+                            if (!task) {
+                            const __taskVal = __findByLabel(['cong viec thuc hien','noi dung cong viec','noi dung nvsx','cong viec']);
+                            if (__taskVal) {
+                                let t = __taskVal.toString().replace(/\r/g,'').trim();
+                                // Remove a leading label only if it actually starts with "công việc..."
+                                t = t.replace(/^\s*(công việc thực hiện|công việc)\s*:?\s*/i, '');
+                                task = t;
+                            } else {
+                                // Fallback: choose the longest multi-line cell containing NVSX-like lines
+                                let best = '';
+                                for (let i = 0; i < Math.min(rows.length, 35); i++) {
+                                    for (let j = 0; j < (rows[i] || []).length; j++) {
+                                        const v = rows[i][j];
+                                        if (__isEmpty(v)) continue;
+                                        const str = v.toString().replace(/\r/g,'');
+                                        if (str.includes('\n') && /\d{3}-\d{2}.*:/i.test(str)) {
+                                            if (str.length > best.length) best = str;
+                                        }
+                                    }
+                                }
+                                if (best) task = best.trim();
+                            }
+
+                            
+                            }
+// Find Header (robust)
                             const __normHeader = (v) => ((v === undefined || v === null) ? '' : v).toString().trim().toLowerCase()
                                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                                 .replace(/\s+/g, ' ');
@@ -1681,7 +2053,13 @@ render() {
             processImport: async () => {
                 if(!importModal.parsedData) return;
                 
-                const { date, destination, nvsx, task, people } = importModal.parsedData;
+                const people = importModal.parsedData.people || [];
+                const date = (document.getElementById('prevDateInput')?.value || '').trim();
+                const destination = (document.getElementById('prevDestInput')?.value || '').trim();
+                const nvsx = (document.getElementById('prevNVSXInput')?.value || '').trim();
+                const task = (document.getElementById('prevTaskInput')?.value || '').replace(/\r/g,'').trim();
+                if(!destination){ utils.showToast('Bắt buộc nhập Nơi đến (Giàn/Tàu) trước khi Import.', 'error'); document.getElementById('prevDestInput')?.focus(); return; }
+                
                 
                 // 1. Identify Conflicts
                 const conflictResults = conflictChecker.check(people, state.currentPlanPeople);
@@ -1742,7 +2120,7 @@ render() {
 
                     newPeople.forEach(p => {
                         const newRef = collectionRef.doc();
-                        const warnings = [];
+                const warnings = [];
                         if(!p.staffNo) warnings.push('Thiếu danh số');
                         if(p.idExpiryDate) {
                              const parts = p.idExpiryDate.split(/[\/\-\.]/);
@@ -1754,10 +2132,10 @@ render() {
                         }
                         
                         // CHANGE: Force defaultOrgName for non-dispatcher users even if Excel has value
-                        const finalOrgName = (state.userRole === 'dispatcher') ? (p.orgName || defaultOrgName) : defaultOrgName;
+                        const finalOrgName = defaultOrgName;
                         
                         batch.set(newRef, {
-                            ...p, orgName: finalOrgName, destination: destination || '', nvsxNo: nvsx || '', taskDesc: task || '',
+                            ...p, orgName: finalOrgName, dkDate: date || '', destination: destination || '', nvsxNo: utils.normalizeNvsxInput(nvsx || ''), taskDesc: utils.normalizeTaskText(task || ''),
                             orgId: defaultOrgId, warnings, createdAt: new Date(), importedBy: state.currentUser.email
                         });
                     });
@@ -2022,8 +2400,10 @@ render() {
 
         Object.keys(grouped).forEach(dest => {
             const group = grouped[dest];
-            const uniqueNVSX = [...new Set(group.map(p => p.nvsxNo).filter(x => x))].join('; ');
-            const uniqueTasks = [...new Set(group.map(p => p.taskDesc).filter(t => t))].join('\n');
+            const meta = utils.getGroupFinalMeta(group);
+            const uniqueNVSX = meta.nvsxStr;
+            const uniqueTasks = (meta.taskLines || []).join('\n');
+            const isInconsistent = !!meta.inconsistent;
 
             html += `
                 <div class="border border-slate-200 rounded-lg overflow-hidden">
@@ -2058,7 +2438,7 @@ render() {
                                             <td class="px-3 py-2 text-center text-slate-500 font-mono">${i + 1}</td>
                                             <td class="px-3 py-2 font-semibold text-slate-700">${esc(p.fullName || '')}</td>
                                             <td class="px-3 py-2 text-slate-600">${esc(p.title || '')}</td>
-                                            <td class="px-3 py-2 text-slate-600">${esc(p.orgName || '')}</td>
+                                            <td class="px-3 py-2 text-slate-600">${esc(importModal.getSelectedOrgName() || p.orgName || '')}</td>
                                             <td class="px-3 py-2 text-center text-slate-600 font-mono">${esc(p.staffNo || '')}</td>
                                         </tr>
                                     `).join('')}
@@ -2086,6 +2466,15 @@ render() {
             const results = await Promise.all(promises);
             const allPeople = results.flat();
             if (allPeople.length === 0) { utils.showToast("Không có dữ liệu", "error"); utils.toggleLoader(false); return; }
+
+            // Warn if group data is inconsistent (still allow export)
+            try {
+                const g = allPeople.reduce((acc, p) => { const k = (p.destination || 'KHÁC'); (acc[k] = acc[k] || []).push(p); return acc; }, {});
+                const hasInconsistent = Object.keys(g).some(k => utils.getGroupFinalMeta(g[k]).inconsistent);
+                if (hasInconsistent) {
+                    utils.showToast("Cảnh báo: Dữ liệu không đồng nhất trong cùng 1 giàn. Nên bấm Sửa giàn/NVSX/CV để chốt lại trước khi Export (vẫn có thể Export).", "warning");
+                }
+            } catch(e) {}
 
             const dateDisplayString = exportManager.selectedDates
                 .map(ds => { const [y, m, d] = ds.split('-'); return `${d}.${m}.${y}`; })
@@ -2286,17 +2675,30 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                     return;
                 }
 
-                const grouped = viewPeople.reduce((acc, p) => { const k = p.destination || 'Chưa xác định'; if(!acc[k]) acc[k]=[]; acc[k].push(p); return acc; }, {});
+                const grouped = viewPeople.reduce((acc, p) => { const k = utils.destinationDisplay(p.destination); if(!acc[k]) acc[k]=[]; acc[k].push(p); return acc; }, {});
                 let html = '';
                 Object.keys(grouped).sort().forEach(dest => {
                     const group = grouped[dest];
-                    const allNvsx = [...new Set(group.map(p => p.nvsxNo).filter(x => x))].join('; ');
-                    const taskDisplay = [...new Set(group.map(p => p.taskDesc).filter(t => t))].map(t => t.replace(/\n/g, '<br/>')).join('<br/><span class="text-slate-300 block my-1 border-t border-slate-200"></span>');
-                    
+                                        const meta = utils.getGroupFinalMeta(group);
+                    const allNvsx = meta.nvsxStr;
+                    const taskLines = meta.taskLines;
+                    const isInconsistent = !!meta.inconsistent;
+
+                    const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                    const taskDisplayHtml = taskLines.length ? taskLines.map(l => escHtml(l)).join('<br/>') : '';
+
+                    const gid = 'task_' + btoa(unescape(encodeURIComponent(dest))).replace(/=+/g,'').replace(/[^a-zA-Z0-9]/g,'');
+
                     const safeDest = dest.replace(/'/g, "\\'");
                     const editBtn = state.userRole === 'dispatcher' ? `<button onclick="app.editDestination('${safeDest}')" class="ml-2 text-slate-400 hover:text-blue-600 transition"><i class="fas fa-edit"></i></button>` : '';
 
-                    html += `<div class="bg-blue-50/50 px-4 py-3 border-b border-blue-100 sticky top-0 z-10 backdrop-blur-sm shadow-sm"><div class="flex justify-between items-start"><div class="w-4/5"><div class="font-bold text-blue-800 text-base flex items-center"><i class="fas fa-map-marker-alt mr-2 text-blue-500"></i> ${dest} ${editBtn}</div><div class="mt-1 text-xs text-slate-600 space-y-1"><div><span class="font-bold">NVSX:</span> ${allNvsx || '--'}</div><div class="flex items-start"><span class="font-bold mr-1 whitespace-nowrap">Công việc:</span> <span class="line-clamp-3 overflow-hidden text-ellipsis">${taskDisplay || '--'}</span></div></div></div><span class="text-xs bg-white text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</span></div></div><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-100 text-xs"><thead><tr><th class="px-3 py-3 text-center w-10">STT</th><th class="px-3 py-3 text-left w-20">Danh số</th><th class="px-3 py-3 text-left w-40">Họ tên</th><th class="px-3 py-3 text-left w-40">Chức danh / Đơn vị</th><th class="px-3 py-3 text-left w-32">Ngày sinh / Nơi sinh</th><th class="px-3 py-3 text-left w-24">SĐT</th><th class="px-3 py-3 text-left w-32">CCCD / Hết hạn</th><th class="px-3 py-3 text-center w-16">Cân nặng</th><th class="px-3 py-3 text-center w-16">Hành lý</th><th class="px-3 py-3 text-center w-16">Hàng hóa</th><th class="px-3 py-3 text-left w-32">Ghi chú</th><th class="px-3 py-3 text-center sticky right-0 bg-slate-50 w-20 shadow-l-sm">Sửa</th></tr></thead><tbody class="bg-white divide-y divide-slate-50">`;
+                    html += `<div class="bg-blue-50/50 px-4 py-3 border-b border-blue-100 sticky top-0 z-10 backdrop-blur-sm shadow-sm"><div class="flex justify-between items-start"><div class="w-4/5"><div class="font-bold text-blue-800 text-base flex items-center"><i class="fas fa-map-marker-alt mr-2 text-blue-500"></i> ${dest} ${editBtn}</div><div class="mt-1 text-xs text-slate-600 space-y-1">\n                    ${isInconsistent ? `<div class=\"text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2\">Dữ liệu không đồng nhất, hãy bấm <b>Sửa giàn/NVSX/CV</b> để chốt lại (vẫn có thể Export).</div>` : ``}<div><span class="font-bold">NVSX:</span> <span class="break-words">${allNvsx || '--'}</span></div><div class="flex items-start"><div class="flex items-start">
+                                <span class="font-bold mr-1 whitespace-nowrap">Công việc:</span>
+                                <div class="flex-1">
+                                    <div id="${gid}" class="js-task-block text-slate-700 leading-relaxed" data-lines="${taskLines.length}">${taskDisplayHtml || '--'}</div>
+                                    <button type="button" class="js-task-toggle hidden mt-1 text-[11px] text-blue-700 font-bold hover:underline" data-target="${gid}">Mở rộng</button>
+                                </div>
+                            </div></div></div></div><span class="text-xs bg-white text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</span></div></div><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-100 text-xs"><thead><tr><th class="px-3 py-3 text-center w-10">STT</th><th class="px-3 py-3 text-left w-20">Danh số</th><th class="px-3 py-3 text-left w-40">Họ tên</th><th class="px-3 py-3 text-left w-40">Chức danh / Đơn vị</th><th class="px-3 py-3 text-left w-32">Ngày sinh / Nơi sinh</th><th class="px-3 py-3 text-left w-24">SĐT</th><th class="px-3 py-3 text-left w-32">CCCD / Hết hạn</th><th class="px-3 py-3 text-center w-16">Cân nặng</th><th class="px-3 py-3 text-center w-16">Hành lý</th><th class="px-3 py-3 text-center w-16">Hàng hóa</th><th class="px-3 py-3 text-left w-32">Ghi chú</th><th class="px-3 py-3 text-center sticky right-0 bg-slate-50 w-20 shadow-l-sm">Sửa</th></tr></thead><tbody class="bg-white divide-y divide-slate-50">`;
                     
                     group.sort((a,b) => (a.nvsxNo||'').localeCompare(b.nvsxNo||'')).forEach((p, idx) => {
                         const warnClass = (p.warnings&&p.warnings.length>0) ? 'bg-red-50/50' : '';
@@ -2315,6 +2717,44 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                     html += `</tbody></table></div>`;
                 });
                 container.innerHTML = html;
+                setTimeout(() => { try { app.initTaskToggles(); } catch(e){} }, 0);
+            },
+            initTaskToggles: () => {
+                try {
+                    const blocks = document.querySelectorAll('.js-task-block');
+                    blocks.forEach(el => {
+                        const lines = parseInt(el.getAttribute('data-lines') || '0', 10);
+                        const targetId = el.id;
+                        const btn = el.parentElement?.querySelector('.js-task-toggle');
+                        if (!btn || !targetId) return;
+
+                        // Only enable toggle when more than 10 lines
+                        if (lines > 10) {
+                            el.classList.add('task-collapsed');
+                            btn.classList.remove('hidden');
+                            btn.textContent = 'Mở rộng';
+                            btn.onclick = () => app.toggleTask(targetId);
+                        } else {
+                            el.classList.remove('task-collapsed');
+                            btn.classList.add('hidden');
+                        }
+                    });
+                } catch (e) {
+                    console.warn('initTaskToggles failed', e);
+                }
+            },
+            toggleTask: (targetId) => {
+                const el = document.getElementById(targetId);
+                if (!el) return;
+                const btn = el.parentElement?.querySelector('.js-task-toggle');
+                const collapsed = el.classList.contains('task-collapsed');
+                if (collapsed) {
+                    el.classList.remove('task-collapsed');
+                    if (btn) btn.textContent = 'Thu gọn';
+                } else {
+                    el.classList.add('task-collapsed');
+                    if (btn) btn.textContent = 'Mở rộng';
+                }
             },
             editDestination: (oldName) => { 
     // Kept name for backwards-compat with existing UI button
@@ -2324,12 +2764,16 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
 openGroupEditModal: (oldName) => {
     if (state.userRole !== 'dispatcher') return;
 
-    const targets = state.currentPlanPeople.filter(p => p.destination === oldName);
+    const oldKey = utils.normalizeDestinationKey(oldName);
+    const oldDisplay = utils.destinationDisplay(oldName);
+
+    const targets = state.currentPlanPeople.filter(p => utils.normalizeDestinationKey(p.destination) === oldKey);
     if (targets.length === 0) return utils.showToast("Không tìm thấy nhân sự nào", "error");
 
     // Prefill with the first row (thường sau import sẽ giống nhau)
-    document.getElementById('groupEditOldName').value = oldName;
-    document.getElementById('groupEditDest').value = oldName || '';
+    document.getElementById('groupEditOldName').value = oldDisplay;
+    document.getElementById('groupEditOldKey').value = oldKey;
+    document.getElementById('groupEditDest').value = oldKey;
     document.getElementById('groupEditNvsx').value = (targets[0].nvsxNo || '');
     document.getElementById('groupEditTask').value = (targets[0].taskDesc || '');
 
@@ -2343,14 +2787,16 @@ closeGroupEditModal: () => {
 },
 
 saveGroupEditModal: async () => {
-    const oldName = document.getElementById('groupEditOldName').value;
-    if (!oldName) return;
+    const oldDisplay = document.getElementById('groupEditOldName').value || '';
+    const oldKey = (document.getElementById('groupEditOldKey')?.value ?? '').toString();
+    if (oldKey === undefined) return;
 
-    const newDest = (document.getElementById('groupEditDest').value || '').trim() || oldName;
+    const newDestInput = (document.getElementById('groupEditDest').value || '').trim();
+    const newDest = newDestInput || oldKey;
     const newNvsx = (document.getElementById('groupEditNvsx').value || '').trim();
     const newTask = (document.getElementById('groupEditTask').value || '').trim();
 
-    const targets = state.currentPlanPeople.filter(p => p.destination === oldName);
+    const targets = state.currentPlanPeople.filter(p => utils.normalizeDestinationKey(p.destination) === oldKey);
     if (targets.length === 0) return utils.showToast("Không tìm thấy nhân sự nào", "error");
 
     utils.toggleLoader(true, "Đang cập nhật...");
@@ -2360,13 +2806,13 @@ saveGroupEditModal: async () => {
         const col = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
         targets.forEach(p => batch.update(col.doc(p.id), {
             destination: newDest,
-            nvsxNo: newNvsx,
-            taskDesc: newTask,
+            nvsxNo: utils.normalizeNvsxInput(newNvsx),
+            taskDesc: utils.normalizeTaskText(newTask),
             updatedBy: state.currentUser.email,
             updatedAt: new Date()
         }));
         await batch.commit();
-        audit.log('GROUP_EDIT', { count: targets.length, destination: newDest, nvsxNo: newNvsx, reason: `from:${oldName}` });
+        audit.log('GROUP_EDIT', { count: targets.length, destination: newDest, nvsxNo: newNvsx, reason: `from:${oldDisplay}` });
         utils.showToast(`Đã cập nhật giàn/NVSX/công việc cho ${targets.length} nhân sự`, 'success');
         app.closeGroupEditModal();
     } catch (e) {
@@ -2484,13 +2930,14 @@ saveGroupEditModal: async () => {
 
                 Object.keys(grouped).forEach(dest => {
                     const group = grouped[dest];
-                    const uniqueNVSX = [...new Set(group.map(p => p.nvsxNo).filter(x => x))].join('; ');
-                    const uniqueTasks = [...new Set(group.map(p => p.taskDesc).filter(t => t))];
+                    const meta = utils.getGroupFinalMeta(group);
+                    const uniqueNVSX = meta.nvsxStr;
+                    const uniqueTasks = (meta.taskLines || []);
                     children.push(new Paragraph({ children: [ new TextRun({ text: "-", size: SZ_N, font: FONT }), new TextRun({ text: ` ${dest}: `, bold: true, size: SZ_N, font: FONT }) ], indent: { left: 720 }, spacing: { before: 100 } }));
                     if(uniqueNVSX) children.push(new Paragraph({ children: [ new TextRun({ text: `+ NVSX: ${uniqueNVSX}`, size: SZ_N, font: FONT }) ], indent: { left: 1440 } }));
                     if(uniqueTasks.length > 0) {
                         children.push(new Paragraph({ children: [ new TextRun({ text: `+ Nội dung công việc:`, size: SZ_N, font: FONT }) ], indent: { left: 1440 } }));
-                        uniqueTasks.forEach(task => { task.split('\n').forEach(line => { let l = line.trim(); if (/^\d+[\)\.]/.test(l)) l = l.replace(/^\d+[\)\.]\s*/, '- '); else if (!l.startsWith('-')) l = '- ' + l; if(l) children.push(new Paragraph({ children: [ new TextRun({ text: l, size: SZ_N, font: FONT }) ], indent: { left: 2160 } })); }); });
+                        uniqueTasks.forEach(line => { let l = (line || '').trim(); if (!l) return; if (/^\d+[\)\.]/.test(l)) l = l.replace(/^\d+[\)\.]\s*/, '- '); else if (!l.startsWith('-')) l = '- ' + l; children.push(new Paragraph({ children: [ new TextRun({ text: l, size: SZ_N, font: FONT }) ], indent: { left: 2160 } })); });
                     }
                 });
 
