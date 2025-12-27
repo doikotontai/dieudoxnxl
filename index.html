@@ -59,12 +59,154 @@
             background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(239,246,255,1));
             pointer-events: none;
         }
+
+        /* Theme (light/dark) - gentle light background, professional dark */
+        html { color-scheme: light; }
+        html:not(.dark) {
+            --app-bg: #f5f6f8;
+            --app-surface: #ffffff;
+            --app-surface2: #f8fafc;
+            --app-text: #0f172a;
+            --app-muted: #334155;
+            --app-muted2: #64748b;
+            --app-border: #e2e8f0;
+            --app-input: #ffffff;
+        }
+        html.dark {
+            color-scheme: dark;
+            --app-bg: #0b1220;
+            --app-surface: #0f172a;
+            --app-surface2: #0b1220;
+            --app-text: #e2e8f0;
+            --app-muted: #cbd5e1;
+            --app-muted2: #94a3b8;
+            --app-border: #1f2a44;
+            --app-input: #0b1220;
+        }
+        body { background-color: var(--app-bg) !important; color: var(--app-text) !important; transition: background-color .25s ease, color .25s ease; }
+        .bg-white, .bg-slate-50, .bg-gray-50 { background-color: var(--app-surface) !important; }
+        .bg-slate-100, .bg-gray-100 { background-color: var(--app-surface2) !important; }
+        .text-slate-900, .text-gray-900, .text-slate-800 { color: var(--app-text) !important; }
+        .text-slate-700, .text-gray-700, .text-slate-600, .text-gray-600 { color: var(--app-muted) !important; }
+        .text-slate-500, .text-gray-500, .text-slate-400 { color: var(--app-muted2) !important; }
+        .border-slate-200, .border-slate-300, .border-gray-200, .border-gray-300 { border-color: var(--app-border) !important; }
+        input, textarea, select {
+            background-color: var(--app-input) !important;
+            color: var(--app-text) !important;
+            border-color: var(--app-border) !important;
+        }
+        ::-webkit-scrollbar-track { background: var(--app-surface2) !important; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; }
+        html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+        /* Login error box in dark */
+        html.dark #loginError { background: rgba(127,29,29,.25) !important; border-color: rgba(239,68,68,.35) !important; color: #fecaca !important; }
+
+
+    
+        /* ===== Darkmode giống ndt.io.vn (override) ===== */
+        .bg-gradient-mesh{
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity .5s ease;
+            background:
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.10) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.10) 0px, transparent 50%);
+            background-color: #0f172a;
+            pointer-events: none;
+        }
+        html.dark .bg-gradient-mesh{ opacity: 1; }
+
+        /* Token màu dịu mắt */
+        html:not(.dark){
+            --app-bg: #f8fafc;
+            --app-surface: rgba(255,255,255,.88);
+            --app-surface2: #f1f5f9;
+            --app-text: #0f172a;
+            --app-muted: #334155;
+            --app-muted2: #64748b;
+            --app-border: #e2e8f0;
+            --app-input: #ffffff;
+        }
+        html.dark{
+            --app-bg: #0f172a;
+            --app-surface: rgba(30,41,59,.40);
+            --app-surface2: rgba(30,41,59,.28);
+            --app-text: #e2e8f0;
+            --app-muted: #cbd5e1;
+            --app-muted2: #94a3b8;
+            --app-border: rgba(255,255,255,.06);
+            --app-input: rgba(15,23,42,.55);
+        }
+
+        /* Glass */
+        .glass-panel{
+            background: rgba(255,255,255,.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--app-border);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.06);
+        }
+        html.dark .glass-panel{
+            background: rgba(15,23,42,.55);
+            border-color: rgba(255,255,255,.05);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.28);
+        }
+
+        /* Nút đổi theme không che UI */
+        .theme-toggle-btn{
+            width: 36px; height: 36px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            box-shadow: 0 1px 2px rgba(0,0,0,.04);
+        }
+        .theme-toggle-btn:hover{ background:#e2e8f0; }
+        html.dark .theme-toggle-btn{
+            background: rgba(30,41,59,.50);
+            border-color: rgba(255,255,255,.05);
+            color: #facc15;
+        }
+        html.dark .theme-toggle-btn:hover{ background: rgba(51,65,85,.60); }
+
+        /* Làm dịu bảng ở dark */
+        html.dark table{ background: transparent; }
+        html.dark thead th{ background-color: rgba(30,41,59,.55) !important; color: #e2e8f0; box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+        html.dark tbody tr:hover{ background: rgba(148,163,184,.07) !important; }
+
+    
+
+        /* ===== Fix darkmode khung Giàn/NVSX/CV ===== */
+        html.dark .bg-blue-50\/50{
+            background: rgba(255,255,255,0.045) !important;
+            border-color: rgba(148,163,184,0.18) !important;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 40px rgba(0,0,0,0.28);
+        }
+        html.dark .border-blue-100{ border-color: rgba(148,163,184,0.18) !important; }
+        html.dark .text-blue-800{ color: rgba(226,232,240,0.96) !important; }
+        html.dark .text-blue-500{ color: rgba(96,165,250,0.95) !important; }
+        html.dark .text-blue-600{ color: rgba(147,197,253,0.95) !important; }
+        html.dark .text-blue-700{ color: rgba(191,219,254,0.95) !important; }
+        html.dark .bg-white.text-blue-700{
+            background: rgba(255,255,255,0.06) !important;
+            border-color: rgba(148,163,184,0.18) !important;
+        }
+
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+    <!-- Background (dark mode mesh) -->
+    <div class=\"bg-gradient-mesh\" aria-hidden=\"true\"></div>
 
-    <!-- Global Loading -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-[60] flex items-center justify-center hidden">
+<!-- Global Loading -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/95 dark:bg-slate-950/85 z-[60] flex items-center justify-center hidden">
         <div class="flex flex-col items-center">
             <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-600 h-10 w-10 mb-3"></div>
             <p id="loadingText" class="text-slate-600 font-semibold text-sm animate-pulse">Đang xử lý...</p>
@@ -88,14 +230,14 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Tài khoản</label>
                     <div class="relative">
-                        <input type="text" id="email" class="w-full border border-slate-300 rounded-lg pl-4 pr-28 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none" placeholder="Nhập user..." required>
-                        <span class="absolute right-0 top-0 bottom-0 px-4 py-3 bg-slate-100 text-slate-500 border-l border-slate-300 rounded-r-lg flex items-center text-sm font-bold tracking-wide">@xnxl.com</span>
-                    </div>
+                        <input type="text" id="email" class="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập user..." autocomplete="username" required>
+</div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Mật khẩu</label>
                     <input type="password" id="password" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none" placeholder="••••••••" required>
                 </div>
+                <div id="loginError" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition transform active:scale-95">Đăng nhập</button>
             </form>
             <div class="mt-6 text-center text-xs text-slate-400 border-t pt-4">
@@ -107,7 +249,7 @@
     <!-- APP SHELL -->
     <div id="appShell" class="hidden flex-col h-full">
         <!-- Header -->
-        <header class="bg-white border-b border-slate-200 shadow-sm flex-none z-30 h-14">
+        <header class="app-header sticky top-0 z-50 flex-none h-14 glass-panel border-b border-slate-200 dark:border-white/5">
             <div class="container mx-auto px-4 h-full flex justify-between items-center">
                 <div class="flex items-center space-x-3">
                     <div class="bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-lg shadow-sm">
@@ -129,6 +271,13 @@
                     <div class="flex space-x-1">
                         <button onclick="app.showDashboard()" class="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"><i class="fas fa-calendar-alt mr-2"></i>Kế hoạch</button>
                         <button id="navSettings" onclick="app.showSettings()" class="hidden px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"><i class="fas fa-cogs mr-2"></i>Cấu hình</button>
+                        <button 
+                        <button id="themeToggle" type="button" aria-pressed="false"
+                            class="theme-toggle-btn mr-1" title="Đổi chế độ sáng/tối">
+                            <i class="fa-solid fa-moon"></i>
+                            <span class="sr-only">Đổi chế độ sáng/tối</span>
+                        </button>
+
                         <button id="navAudit" onclick="auditModal.open()" class="hidden px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"><i class="fas fa-clipboard-list mr-2"></i>Nhật ký</button>
                         <button onclick="app.logout()" class="px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-md transition ml-1"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
@@ -241,7 +390,7 @@
     <!-- MODALS -->
 
     <!-- REPORT MODAL -->
-    <div id="reportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="reportModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-chart-bar text-purple-600 mr-2"></i> Báo Cáo Số Liệu</h3>
@@ -303,7 +452,7 @@
     </div>
 
     <!-- Export DOCX Modal (Existing) -->
-    <div id="exportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="exportModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-file-word text-blue-600 mr-2"></i> Xuất Kế Hoạch (DOCX)</h3>
@@ -331,7 +480,7 @@
 
 
     <!-- Export Preview Modal -->
-    <div id="exportPreviewModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[65] hidden flex items-center justify-center p-4">
+    <div id="exportPreviewModal" class="fixed inset-0 bg-slate-950/90 z-[65] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-clipboard-check text-blue-600 mr-2"></i> Xác nhận nội dung xuất (DOCX / PDF)</h3>
@@ -352,7 +501,7 @@
     <div id="pdfExportRoot" class="hidden"></div>
 
     <!-- CONFLICT / IMPORT RESULT MODAL -->
-    <div id="importResultModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[80] hidden flex items-center justify-center p-4">
+    <div id="importResultModal" class="fixed inset-0 bg-slate-950/90 z-[80] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="font-bold text-slate-800 text-lg">Kết quả Import</h3>
@@ -387,7 +536,7 @@
     </div>
 
     <!-- User Modal -->
-    <div id="userModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="userModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
                 <h3 class="font-bold text-slate-800 text-sm"><span id="userModalTitle">Thêm User Mới</span></h3>
@@ -409,7 +558,7 @@
     </div>
 
     <!-- Import Modal -->
-        <div id="importModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div id="importModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-3 sm:p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh]">
             <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-2xl">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
@@ -508,7 +657,7 @@
 
 
     <!-- Group Edit Modal (Admin) -->
-    <div id="groupEditModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[55] hidden flex items-center justify-center p-4">
+    <div id="groupEditModal" class="fixed inset-0 bg-slate-950/90 z-[55] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-edit text-blue-600 mr-2"></i> Sửa thông tin Giàn / NVSX / Công việc</h3>
@@ -543,7 +692,7 @@
     <!-- Hidden Datalist for Admin -->
     <datalist id="allOrgsDatalist"></datalist>
 
-        <div id="editPersonModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div id="editPersonModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-3 sm:p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[92vh]">
             <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-2xl">
                 <h3 class="font-bold text-slate-800 flex items-center gap-2">
@@ -698,7 +847,7 @@
 
     
     <!-- WARNING CENTER MODAL -->
-    <div id="warningModal" class="fixed inset-0 bg-black/50 z-[65] hidden items-center justify-center p-4">
+    <div id="warningModal" class="fixed inset-0 bg-black/70 z-[65] hidden items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200">
             <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div>
@@ -739,7 +888,7 @@
     </div>
 
     <!-- AUDIT LOG MODAL -->
-    <div id="auditModal" class="fixed inset-0 bg-black/50 z-[65] hidden items-center justify-center p-4">
+    <div id="auditModal" class="fixed inset-0 bg-black/70 z-[65] hidden items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col">
             <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div>
@@ -802,6 +951,6 @@
     </div>
 
 <!-- MAIN SCRIPT -->
-    <script src="app.min_v10_mobile_pdf_fix4.js?v=1" defer></script>
+    <script src="app.min_v12_security_theme.js?v=1" defer></script>
 </body>
 </html>
