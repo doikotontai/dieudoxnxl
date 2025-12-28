@@ -309,7 +309,7 @@ const firebaseConfig = {
 
             schedulePrune(force = false) {
                 try {
-                    if (!state.isDispatcher) return;
+                    if (state.userRole !== 'dispatcher') return;
                     const now = Date.now();
                     if (!force && now - this._lastPruneAt < this._pruneIntervalMs) return;
                     this._lastPruneAt = now;
@@ -325,7 +325,7 @@ const firebaseConfig = {
             },
 
             async prune() {
-                if (!state.isDispatcher) return;
+                if (state.userRole !== 'dispatcher') return;
 
                 const coll = getPublicColl('auditLogs');
                 const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // chỉ giữ tối đa 7 ngày gần nhất
