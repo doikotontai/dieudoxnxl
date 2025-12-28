@@ -281,6 +281,10 @@ const firebaseConfig = {
         const getPublicColl = (name) => db.collection('artifacts').doc(appId).collection('public').doc('data').collection(name);
 
         const audit = {
+            _lastPruneAt: 0,
+            _pruneIntervalMs: 30 * 60 * 1000, // throttle: tối đa 1 lần / 30 phút
+            _pruneTimer: null,
+
             async log(action, details = {}) {
                 try {
                     if (!state.currentUser) return;
@@ -294,9 +298,72 @@ const firebaseConfig = {
                         details: details || {}
                     };
                     await getPublicColl('auditLogs').add(payload);
+
+                    // Tự động dọn nhật ký (chỉ dispatcher/admin có quyền delete)
+                    this.schedulePrune();
                 } catch (e) {
                     // Do not break main flow if logging fails
                     console.warn('AuditLogFailed:', e);
+                }
+            },
+
+            schedulePrune(force = false) {
+                try {
+                    if (!state.isDispatcher) return;
+                    const now = Date.now();
+                    if (!force && now - this._lastPruneAt < this._pruneIntervalMs) return;
+                    this._lastPruneAt = now;
+
+                    // Debounce nhẹ để tránh dọn liên tục khi import nhiều thao tác
+                    if (this._pruneTimer) clearTimeout(this._pruneTimer);
+                    this._pruneTimer = setTimeout(() => {
+                        this.prune().catch(e => console.warn('AuditPruneFailed:', e));
+                    }, 1200);
+                } catch (e) {
+                    console.warn('AuditSchedulePruneFailed:', e);
+                }
+            },
+
+            async prune() {
+                if (!state.isDispatcher) return;
+
+                const coll = getPublicColl('auditLogs');
+                const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // chỉ giữ tối đa 7 ngày gần nhất
+
+                // 1) Xóa mọi log cũ hơn 7 ngày
+                while (true) {
+                    const snap = await coll
+                        .where('createdAt', '<', cutoff)
+                        .orderBy('createdAt', 'asc')
+                        .limit(450)
+                        .get();
+
+                    if (snap.empty) break;
+
+                    const batch = db.batch();
+                    snap.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                }
+
+                // 2) Giữ tối đa 200 log gần nhất
+                const keepSnap = await coll.orderBy('createdAt', 'desc').limit(200).get();
+                if (keepSnap.empty) return;
+
+                const lastKeepDoc = keepSnap.docs[keepSnap.docs.length - 1];
+
+                // Nếu còn log cũ hơn vị trí 200 thì xóa tiếp theo lô
+                while (true) {
+                    const extraSnap = await coll
+                        .orderBy('createdAt', 'desc')
+                        .startAfter(lastKeepDoc)
+                        .limit(450)
+                        .get();
+
+                    if (extraSnap.empty) break;
+
+                    const batch = db.batch();
+                    extraSnap.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
                 }
             }
         };
@@ -412,6 +479,9 @@ const firebaseConfig = {
             async refresh() {
                 utils.toggleLoader(true, 'Đang tải nhật ký...');
                 try {
+                    // Dispatcher/Admin: mở nhật ký sẽ tự dọn (giữ 200 dòng & tối đa 7 ngày)
+                    audit.schedulePrune(true);
+
                     const snap = await getPublicColl('auditLogs').orderBy('createdAt', 'desc').limit(200).get();
                     auditModal._cache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     auditModal._page = 1;
@@ -1706,6 +1776,7 @@ render() {
 
         const editModal = {
             currentPersonId: null,
+            currentEditOrgId: null,
             // NEW: Function to render destination suggestions
             renderDestinationSuggestions: () => {
                 const uniqueDestinations = [...new Set(state.currentPlanPeople.map(p => p.destination).filter(Boolean))];
@@ -1718,9 +1789,19 @@ render() {
                     `<span onclick="document.getElementById('edit_destination').value = '${dest}'" class="cursor-pointer bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded border border-blue-200 transition">${dest}</span>`
                 ).join('');
             },
+            mode: null,
+            fixedJobMeta: null,
+            openAddToGroup: async (dest) => {
+                const meta = (state.groupMetaByDest && state.groupMetaByDest[dest]) ? state.groupMetaByDest[dest] : { destination: dest, nvsxNo: '', taskDesc: '' };
+                editModal.mode = 'addToGroup';
+                editModal.fixedJobMeta = meta;
+                return editModal.open(null);
+            },
+
             open: async (personId = null) => {
                 utils.toggleLoader(true, "Đang xử lý...");
                 editModal.currentPersonId = personId;
+                editModal.currentEditOrgId = null;
                 const titleEl = document.getElementById('editModalTitle');
                 
                 ['edit_staffNo','edit_fullName','edit_title','edit_orgName','edit_dob','edit_pob','edit_phone','edit_idNo',
@@ -1768,12 +1849,36 @@ render() {
                 }
 
                 try {
-                    if (personId) {
+                    // Reset Job UI (used by addToGroup mode)
+                        try {
+                            const __adv = document.getElementById('advEdit');
+                            const __note = document.getElementById('addToGroupJobNote');
+                            if (__note) __note.remove();
+                            const __destIn = document.getElementById('edit_destination');
+                            const __taskIn = document.getElementById('edit_taskDesc');
+                            const __destWrap = __destIn ? __destIn.closest('div') : null;
+                            const __taskWrap = __taskIn ? __taskIn.closest('div') : null;
+                            const __sugg = document.getElementById('destSuggestions');
+                            if (__destWrap) __destWrap.classList.remove('hidden');
+                            if (__taskWrap) __taskWrap.classList.remove('hidden');
+                            if (__sugg) __sugg.classList.remove('hidden');
+                            if (__destIn) { __destIn.disabled = false; __destIn.readOnly = false; __destIn.classList.remove('opacity-60'); }
+                            if (__taskIn) { __taskIn.disabled = false; __taskIn.readOnly = false; __taskIn.classList.remove('opacity-60'); }
+                            // In case adv was hidden by previous mode, keep existing behavior elsewhere
+                        } catch(e) {}
+                        if (personId) {
                         titleEl.innerText = "Sửa thông tin";
                         // UPDATED PATH: Use public/data/dailyPlans
                         const doc = await getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people').doc(personId).get();
                         if(!doc.exists) throw new Error("Không tìm thấy nhân sự");
                         const p = doc.data();
+
+                        // Permission guard: user chỉ được sửa/xóa nhân sự của xưởng mình (admin thì luôn được)
+                        editModal.currentEditOrgId = p.orgId || '';
+                        if (state.userRole !== 'dispatcher') {
+                            if (state.isPlanLocked) { utils.showToast("Ngày đã KHÓA, không thể sửa nhân sự.", "error"); editModal.currentPersonId = null; return; }
+                            if ((p.orgId || '') !== state.userOrgId) { utils.showToast("Không thể sửa nhân sự của xưởng khác.", "error"); editModal.currentPersonId = null; return; }
+                        }
                         
                         document.getElementById('edit_staffNo').value = p.staffNo || '';
                         document.getElementById('edit_fullName').value = p.fullName || '';
@@ -1798,15 +1903,54 @@ render() {
                         document.getElementById('edit_taskDesc').value = p.taskDesc || '';
                         document.getElementById('advEdit').classList.add('hidden');
                     } else {
-                        titleEl.innerText = "Thêm nhân sự mới";
-                        // Default show advanced in add mode so suggestions are visible
-                        document.getElementById('advEdit').classList.remove('hidden');
-                        editModal.renderDestinationSuggestions(); // Load suggestions immediately
+                        if (editModal.mode === 'addToGroup') {
+                            const m = editModal.fixedJobMeta || {};
+                            titleEl.innerText = `Thêm nhân sự (${m.destination || ''})`;
+                            document.getElementById('edit_destination').value = m.destination || '';
+                            document.getElementById('edit_nvsxNo').value = m.nvsxNo || '';
+                            document.getElementById('edit_taskDesc').value = m.taskDesc || '';
+
+                            // Show job section but lock "Nơi đến" + "Nội dung" (chỉ cho sửa NVSX khi thật cần)
+                            try {
+                                const adv = document.getElementById('advEdit');
+                                if (adv) adv.classList.remove('hidden');
+
+                                const destIn = document.getElementById('edit_destination');
+                                const taskIn = document.getElementById('edit_taskDesc');
+                                const destWrap = destIn ? destIn.closest('div') : null;
+                                const taskWrap = taskIn ? taskIn.closest('div') : null;
+                                const sugg = document.getElementById('destSuggestions');
+
+                                // Hide destination + taskDesc UI to avoid accidental edits
+                                if (destWrap) destWrap.classList.add('hidden');
+                                if (taskWrap) taskWrap.classList.remove('hidden');
+                                if (sugg) sugg.classList.add('hidden');
+
+                                // Still hard-lock fields (even if someone un-hides via devtools)
+                                if (destIn) { destIn.disabled = true; destIn.readOnly = true; destIn.classList.add('opacity-60'); }
+                                if (taskIn) { taskIn.disabled = false; taskIn.readOnly = false; taskIn.classList.remove('opacity-60'); }
+
+                                // Note to users
+                                let note = document.getElementById('addToGroupJobNote');
+                                if (!note && adv) {
+                                    note = document.createElement('div');
+                                    note.id = 'addToGroupJobNote';
+                                    note.className = 'p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-sm leading-relaxed';
+                                    note.innerHTML = '<b>Lưu ý:</b> Địa điểm đến (Giàn/Tàu) đã được cố định theo danh sách đã import. Chỉ chỉnh <b>Số NVSX</b> và/hoặc <b>Nội dung công việc</b> khi thật sự cần (ví dụ thay đổi NVSX). Khi nhập NVSX, hệ thống sẽ tự bỏ trùng để tránh lặp/dư.';
+                                    adv.prepend(note);
+                                }
+                            } catch(e) {}
+                        } else {
+                            titleEl.innerText = "Thêm nhân sự mới";
+                            // Default show advanced in add mode so suggestions are visible
+                            document.getElementById('advEdit').classList.remove('hidden');
+                            editModal.renderDestinationSuggestions(); // Load suggestions immediately
+                        }
                     }
                     document.getElementById('editPersonModal').classList.remove('hidden'); document.getElementById('editPersonModal').classList.add('flex');
                 } catch(e) { utils.showToast(e.message, "error"); } finally { utils.toggleLoader(false); }
             },
-            close: () => { document.getElementById('editPersonModal').classList.add('hidden'); document.getElementById('editPersonModal').classList.remove('flex'); },
+            close: () => { document.getElementById('editPersonModal').classList.add('hidden'); document.getElementById('editPersonModal').classList.remove('flex'); editModal.mode = null; editModal.fixedJobMeta = null; },
             save: async () => {
                 utils.toggleLoader(true, "Đang lưu...");
                 
@@ -1833,6 +1977,26 @@ render() {
                     updatedBy: state.currentUser.email, updatedAt: new Date()
                 };
 
+                // Normalize job fields (avoid duplicated NVSX / messy text)
+                try {
+                    updatedData.destination = utils.normalizeDestinationKey(updatedData.destination || '');
+                    updatedData.nvsxNo = utils.normalizeNvsxInput(updatedData.nvsxNo || '');
+                    updatedData.taskDesc = utils.normalizeTaskText(updatedData.taskDesc || '');
+                } catch(e) {}
+
+                // addToGroup: ignore edits of job info, only allow optional NVSX override
+                if (!editModal.currentPersonId && editModal.mode === 'addToGroup') {
+                    const m = editModal.fixedJobMeta || {};
+                    // Destination is fixed by group (Giàn/Tàu)
+                    updatedData.destination = m.destination || updatedData.destination;
+
+                    // Allow editing NVSX + Nội dung công việc when really needed; if left blank, fallback to group meta
+                    const nInput = utils.normalizeNvsxInput((document.getElementById('edit_nvsxNo').value || '').trim());
+                    const tInput = utils.normalizeTaskText((document.getElementById('edit_taskDesc').value || '').trim());
+                    updatedData.nvsxNo = nInput || utils.normalizeNvsxInput(m.nvsxNo || '');
+                    updatedData.taskDesc = tInput || utils.normalizeTaskText(m.taskDesc || '');
+                }
+
                 const warnings = [];
                 if(!updatedData.staffNo) warnings.push('Thiếu danh số');
                 if(updatedData.idExpiryDate) {
@@ -1858,6 +2022,12 @@ render() {
                 try {
                     // UPDATED PATH: Use public/data/dailyPlans
                     if (editModal.currentPersonId) {
+                        // Permission guard (safety): user không được sửa nhân sự xưởng khác / ngày khóa
+                        if (state.userRole !== 'dispatcher') {
+                            if (state.isPlanLocked) { utils.showToast("Ngày đã KHÓA, không thể cập nhật.", "error"); utils.toggleLoader(false); return; }
+                            const refOrg = editModal.currentEditOrgId || (state.currentPlanPeople.find(p => p.id === editModal.currentPersonId)?.orgId) || '';
+                            if (refOrg && refOrg !== state.userOrgId) { utils.showToast("Không thể cập nhật nhân sự của xưởng khác.", "error"); utils.toggleLoader(false); return; }
+                        }
                         await getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people').doc(editModal.currentPersonId).update(updatedData);
                         audit.log('UPDATE_PERSON', { staffNo: updatedData.staffNo, fullName: updatedData.fullName, destination: updatedData.destination });
                         utils.showToast("Đã cập nhật", "success");
@@ -1972,7 +2142,10 @@ render() {
             const uniqueTasks = (meta.taskLines || []).join('\n');
             const isInconsistent = !!meta.inconsistent;
 
-            html += `
+                    // Cache group meta for Add-to-group button
+                    try { state.groupMetaByDest[dest] = { destination: dest, nvsxNo: allNvsx || '', taskDesc: (meta.taskText || '') }; } catch(e) {}
+
+                    html += `
                 <div class="border border-slate-200 rounded-lg overflow-hidden">
                     <div class="bg-blue-50 px-4 py-3 flex justify-between items-center">
                         <div class="font-bold text-blue-800 text-base flex items-center">
@@ -2105,6 +2278,7 @@ render() {
             init: () => {
                 // Force auth persistence to SESSION (logout required after closing browser)
                 try { auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); } catch(e) {}
+                try { const _b=document.getElementById('btnAdd'); if(_b) _b.classList.add('hidden'); } catch(e) {}
                 const __hasLocalAuth = () => {
                     try {
                         for (let i = 0; i < localStorage.length; i++) {
@@ -2143,7 +2317,8 @@ render() {
                         await app.loadOrgs(); if(state.userRole === 'dispatcher') userManager.loadUsers();
                         
                         const today = new Date(); const mm = String(today.getMonth()+1).padStart(2,'0'); const dd = String(today.getDate()).padStart(2,'0'); const yyyy = today.getFullYear();
-                        document.getElementById('planDateInput').value = `${yyyy}-${mm}-${dd}`; document.getElementById('exportDateInput').value = `${yyyy}-${mm}-${dd}`;
+                        document.getElementById('planDateInput').value = `${yyyy}-${mm}-${dd}`;
+                        try { if (typeof calendarPicker !== 'undefined') calendarPicker.init(); } catch(e) {} document.getElementById('exportDateInput').value = `${yyyy}-${mm}-${dd}`;
                         state.currentDateKey = `${yyyy}${mm}${dd}`;
                         
                         app.loadPlan(); // Start listener
@@ -2397,8 +2572,7 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                     const isDisp = state.userRole === 'dispatcher';
                     document.getElementById('btnImport').disabled = state.isPlanLocked && !isDisp;
                     document.getElementById('btnImport').classList.toggle('opacity-50', state.isPlanLocked && !isDisp);
-                    document.getElementById('btnAdd').disabled = state.isPlanLocked && !isDisp;
-                    document.getElementById('btnAdd').classList.toggle('opacity-50', state.isPlanLocked && !isDisp);
+                    const __btnAdd=document.getElementById('btnAdd'); if(__btnAdd){ __btnAdd.disabled = state.isPlanLocked && !isDisp; __btnAdd.classList.toggle('opacity-50', state.isPlanLocked && !isDisp); }
                     document.getElementById('btnLock').innerHTML = state.isPlanLocked ? '<i class="fas fa-unlock mr-1"></i> Mở' : '<i class="fas fa-lock mr-1"></i> Khóa';
                     document.getElementById('btnDeleteAll').classList.toggle('hidden', state.isPlanLocked && !isDisp);
                 });
@@ -2406,8 +2580,7 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                 // 2. Real-time Listen People
                 // UPDATED PATH: Use public/data/dailyPlans
                 let q = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
-                if (state.userRole !== 'dispatcher') q = q.where('orgId', '==', state.userOrgId);
-
+                
                 state.unsubscribePlan = q.onSnapshot(snap => {
                     const people = snap.docs.map(d => ({...d.data(), id: d.id}));
                     state.currentPlanPeople = people;
@@ -2439,6 +2612,7 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
 
                 const grouped = viewPeople.reduce((acc, p) => { const k = utils.destinationDisplay(p.destination); if(!acc[k]) acc[k]=[]; acc[k].push(p); return acc; }, {});
                 let html = '';
+                state.groupMetaByDest = {};
                                 const isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 767px)').matches);
 
                 Object.keys(grouped).sort().forEach(dest => {
@@ -2457,6 +2631,8 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                     const editBtn = state.userRole === 'dispatcher'
                         ? `<button onclick="app.editDestination('${safeDest}')" class="ml-2 text-slate-400 hover:text-blue-600 transition"><i class="fas fa-edit"></i></button>`
                         : '';
+
+                    const canAddToGroup = !(state.isPlanLocked && state.userRole !== 'dispatcher');
 
                     html += `
                         <div class="bg-blue-50/50 px-4 py-3 border-b border-blue-100 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
@@ -2477,7 +2653,10 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                                         </div>
                                     </div>
                                 </div>
-                                <span class="text-xs bg-white text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</span>
+                                <div class="flex flex-col items-end gap-2">
+                                <span class="text-xs bg-white text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</span>
+                                <button type="button" class="js-add-to-group bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-sm ${canAddToGroup ? '' : 'opacity-50 cursor-not-allowed'}" data-dest="${escHtml(dest)}" ${canAddToGroup ? '' : 'disabled'}><i class="fas fa-plus mr-1"></i> Thêm</button>
+                            </div>
                             </div>
                         </div>
                     `;
@@ -2587,8 +2766,25 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                     }
                 });
                 container.innerHTML = html;
+                setTimeout(() => { try { app.initAddToGroupButtons(); } catch(e){} }, 0);
                 setTimeout(() => { try { app.initTaskToggles(); } catch(e){} }, 0);
             },
+
+            initAddToGroupButtons: () => {
+                try {
+                    const container = document.getElementById('planContent');
+                    if (!container || container._boundAddToGroup) return;
+                    container.addEventListener('click', (e) => {
+                        const btn = e.target && e.target.closest ? e.target.closest('.js-add-to-group') : null;
+                        if (!btn) return;
+                        if (btn.hasAttribute('disabled') || btn.disabled) return;
+                        const dest = btn.getAttribute('data-dest') || '';
+                        try { editModal.openAddToGroup(dest); } catch(err) {}
+                    });
+                    container._boundAddToGroup = true;
+                } catch(e) {}
+            },
+
             initTaskToggles: () => {
                 try {
                     const blocks = document.querySelectorAll('.js-task-block');
@@ -2692,6 +2888,13 @@ saveGroupEditModal: async () => {
     }
 },
             deletePerson: async (id) => { 
+                // Permission guard (safety): user chỉ xóa nhân sự của xưởng mình và khi chưa khóa
+                if (state.userRole !== 'dispatcher') {
+                    if (state.isPlanLocked) return utils.showToast("Ngày đã KHÓA, không thể xóa.", "error");
+                    const row = (state.currentPlanPeople || []).find(p => p.id === id);
+                    const rowOrg = row ? (row.orgId || '') : '';
+                    if (rowOrg && rowOrg !== state.userOrgId) return utils.showToast("Không thể xóa nhân sự của xưởng khác.", "error");
+                }
                 if(!confirm("Xác nhận xóa nhân sự này?")) return;
                 utils.toggleLoader(true, "Đang xóa...");
                 try {
@@ -2704,7 +2907,8 @@ saveGroupEditModal: async () => {
                     utils.toggleLoader(false);
                 }
             },
-            deleteAllPeople: async () => {
+
+deleteAllPeople: async () => {
                 if(state.currentPlanPeople.length === 0 || !confirm("CẢNH BÁO: Xóa TOÀN BỘ danh sách?") || !confirm("Chắc chắn xóa?")) return;
                 utils.toggleLoader(true, 'Đang xóa...');
                 try {
@@ -3114,7 +3318,317 @@ children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.P
             }
         };
 
-        app.init();
+        app.init()
+// === Custom calendar picker with status coloring (no data / draft / locked) ===
+        const calendarPicker = (() => {
+            let pop = null;
+            let outsideHandler = null;
+            const cache = {}; // yyyymm -> { fetchedAt:number, map: { [dateKey]: 'draft'|'locked' } }
+
+            function pad2(n) { return String(n).padStart(2,'0'); }
+            function yyyymm(year, monthIdx) { return `${year}${pad2(monthIdx+1)}`; }
+            function formatISO(year, monthIdx, day) { return `${year}-${pad2(monthIdx+1)}-${pad2(day)}`; }
+
+            async function fetchMonthStatus(year, monthIdx) {
+                // Definition:
+                // - "Có dữ liệu" = ngày đó có ÍT NHẤT 1 nhân sự trong subcollection /dailyPlans/{YYYYMMDD}/people
+                // - Nếu có dữ liệu: tô theo trạng thái dailyPlans.status (Locked = locked, còn lại = draft)
+                // - Nếu chưa có dữ liệu: không tô (none)
+                const key = yyyymm(year, monthIdx);
+                const now = Date.now();
+                if (cache[key] && (now - cache[key].fetchedAt) < 30000) return cache[key].map;
+
+                const startKey = `${key}01`;
+                const endKey = `${key}31`;
+
+                const map = {};
+                const planStatus = {}; // dateKey -> 'locked'|'draft'
+                try {
+                    // 1) Fetch status của dailyPlans trong tháng (nhanh, 1 query)
+                    const fp = firebase.firestore.FieldPath.documentId();
+                    const snap = await getPublicColl('dailyPlans')
+                        .orderBy(fp)
+                        .startAt(startKey)
+                        .endAt(endKey)
+                        .get();
+                    snap.forEach(d => {
+                        const st = (d.data() || {}).status;
+                        planStatus[d.id] = (st === 'Locked') ? 'locked' : 'draft';
+                    });
+
+                    // 2) Kiểm tra có ít nhất 1 nhân sự /people hay không (limit(1))
+                    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+                    const dateKeys = [];
+                    for (let d=1; d<=daysInMonth; d++) {
+                        dateKeys.push(`${key}${pad2(d)}`);
+                    }
+
+                    // Chunk để tránh bắn quá nhiều request đồng thời
+                    const chunkSize = 10;
+                    for (let i=0; i<dateKeys.length; i+=chunkSize) {
+                        const chunk = dateKeys.slice(i, i + chunkSize);
+                        const results = await Promise.all(chunk.map(async (dateKey) => {
+                            try {
+                                const ps = await getPublicColl('dailyPlans')
+                                    .doc(dateKey)
+                                    .collection('people')
+                                    .limit(1)
+                                    .get();
+                                return { dateKey, hasPeople: !ps.empty };
+                            } catch (e) {
+                                // nếu ngày nào đó bị lỗi thì coi như không có dữ liệu
+                                return { dateKey, hasPeople: false };
+                            }
+                        }));
+
+                        results.forEach(r => {
+                            if (r.hasPeople) {
+                                map[r.dateKey] = planStatus[r.dateKey] || 'draft';
+                            }
+                        });
+                    }
+
+                } catch(e) {
+                    // If query fails (rules/index), just fallback to no coloring
+                    console.warn('calendarPicker.fetchMonthStatus failed', e);
+                }
+                cache[key] = { fetchedAt: now, map };
+                return map;
+            }
+
+            function ensurePop() {
+                if (pop) return pop;
+                pop = document.createElement('div');
+                pop.id = 'planCalendarPopover';
+                pop.className = 'fixed z-[9999] hidden';
+                pop.innerHTML = `
+                  <div class="w-[320px] rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+                    <div class="p-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <button type="button" id="calPrevBtn" class="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center">
+                          <i class="fa-solid fa-chevron-left text-slate-600 dark:text-slate-200"></i>
+                        </button>
+                        <div class="text-sm font-extrabold text-slate-800 dark:text-slate-100" id="calTitle">--</div>
+                        <button type="button" id="calNextBtn" class="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center">
+                          <i class="fa-solid fa-chevron-right text-slate-600 dark:text-slate-200"></i>
+                        </button>
+                      </div>
+                      <button type="button" id="calCloseBtn" class="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center" title="Đóng">
+                        <i class="fa-solid fa-xmark text-slate-600 dark:text-slate-200"></i>
+                      </button>
+                    </div>
+
+                    <div class="px-3 py-2 flex flex-wrap gap-2 text-[11px] font-bold">
+                      <div class="flex items-center gap-1">
+                        <span class="inline-block h-3 w-3 rounded bg-slate-200 dark:bg-slate-700"></span>
+                        <span class="text-slate-600 dark:text-slate-300">Chưa có dữ liệu</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="inline-block h-3 w-3 rounded bg-amber-200 dark:bg-amber-900/40"></span>
+                        <span class="text-slate-600 dark:text-slate-300">Có dữ liệu - Chưa chốt</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="inline-block h-3 w-3 rounded bg-emerald-200 dark:bg-emerald-900/40"></span>
+                        <span class="text-slate-600 dark:text-slate-300">Có dữ liệu - Đã chốt</span>
+                      </div>
+                    </div>
+
+                    <div class="px-3 pb-3">
+                      <div class="grid grid-cols-7 gap-1 text-[11px] font-black text-slate-500 dark:text-slate-400 mb-1">
+                        <div class="text-center">CN</div><div class="text-center">T2</div><div class="text-center">T3</div><div class="text-center">T4</div><div class="text-center">T5</div><div class="text-center">T6</div><div class="text-center">T7</div>
+                      </div>
+                      <div class="grid grid-cols-7 gap-1" id="calGrid"></div>
+                    </div>
+                  </div>
+                `;
+                document.body.appendChild(pop);
+
+                // prevent click-through close
+                pop.addEventListener('click', (e) => e.stopPropagation());
+
+                return pop;
+            }
+
+            function positionPop(anchor) {
+                const r = anchor.getBoundingClientRect();
+                const width = 320;
+                const margin = 8;
+                let left = Math.round(r.left);
+                let top = Math.round(r.bottom + margin);
+
+                // keep inside viewport
+                if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
+                if (left < margin) left = margin;
+
+                // if overflow bottom, open above
+                const estHeight = 420;
+                if (top + estHeight > window.innerHeight - margin) {
+                    top = Math.max(margin, Math.round(r.top - estHeight - margin));
+                }
+
+                pop.style.left = `${left}px`;
+                pop.style.top = `${top}px`;
+            }
+
+            function monthTitle(year, monthIdx) {
+                const names = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+                return `${names[monthIdx]} / ${year}`;
+            }
+
+            function statusClasses(st) {
+                if (st === 'locked') return 'bg-emerald-200 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 hover:opacity-90';
+                if (st === 'draft') return 'bg-amber-200 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 hover:opacity-90';
+                return 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
+            }
+
+            function render(year, monthIdx, statusMap) {
+                const titleEl = pop.querySelector('#calTitle');
+                const grid = pop.querySelector('#calGrid');
+                if (titleEl) titleEl.textContent = monthTitle(year, monthIdx);
+                if (!grid) return;
+
+                grid.innerHTML = '';
+
+                const first = new Date(year, monthIdx, 1);
+                const firstDow = first.getDay(); // 0=Sun
+                const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+
+                const curKey = state.currentDateKey;
+
+                // leading blanks
+                for (let i=0; i<firstDow; i++) {
+                    const blank = document.createElement('div');
+                    blank.className = 'h-9';
+                    grid.appendChild(blank);
+                }
+
+                for (let d=1; d<=daysInMonth; d++) {
+                    const dateKey = `${yyyymm(year, monthIdx)}${pad2(d)}`;
+                    const st = statusMap[dateKey] || 'none';
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = `h-9 rounded-lg text-sm font-extrabold border border-transparent ${statusClasses(st)} focus:outline-none focus:ring-2 focus:ring-blue-500`;
+                    btn.textContent = String(d);
+
+                    if (curKey === dateKey) {
+                        btn.classList.add('ring-2','ring-blue-500');
+                    }
+
+                    btn.addEventListener('click', () => {
+                        const input = document.getElementById('planDateInput');
+                        if (!input) return;
+                        input.value = formatISO(year, monthIdx, d);
+                        app.changeDate();
+                        close();
+                    });
+
+                    grid.appendChild(btn);
+                }
+            }
+
+            async function open() {
+                const input = document.getElementById('planDateInput');
+                if (!input) return;
+                ensurePop();
+                positionPop(input);
+
+                // determine month/year from current input value
+                let y, m;
+                const v = (input.value || '').trim();
+                const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+                if (mm) {
+                    y = parseInt(mm[1], 10);
+                    m = parseInt(mm[2], 10) - 1;
+                } else {
+                    const now = new Date();
+                    y = now.getFullYear();
+                    m = now.getMonth();
+                }
+
+                pop.dataset.year = String(y);
+                pop.dataset.month = String(m);
+
+                const statusMap = await fetchMonthStatus(y, m);
+                render(y, m, statusMap);
+
+                // bind nav
+                const prev = pop.querySelector('#calPrevBtn');
+                const next = pop.querySelector('#calNextBtn');
+                const closeBtn = pop.querySelector('#calCloseBtn');
+
+                if (prev) prev.onclick = async () => {
+                    let year = parseInt(pop.dataset.year, 10);
+                    let month = parseInt(pop.dataset.month, 10);
+                    month -= 1;
+                    if (month < 0) { month = 11; year -= 1; }
+                    pop.dataset.year = String(year);
+                    pop.dataset.month = String(month);
+                    const sm = await fetchMonthStatus(year, month);
+                    render(year, month, sm);
+                };
+                if (next) next.onclick = async () => {
+                    let year = parseInt(pop.dataset.year, 10);
+                    let month = parseInt(pop.dataset.month, 10);
+                    month += 1;
+                    if (month > 11) { month = 0; year += 1; }
+                    pop.dataset.year = String(year);
+                    pop.dataset.month = String(month);
+                    const sm = await fetchMonthStatus(year, month);
+                    render(year, month, sm);
+                };
+                if (closeBtn) closeBtn.onclick = () => close();
+
+                // show
+                pop.classList.remove('hidden');
+
+                // outside click close
+                if (outsideHandler) document.removeEventListener('click', outsideHandler, true);
+                outsideHandler = (e) => {
+                    if (!pop) return;
+                    close();
+                };
+                setTimeout(() => document.addEventListener('click', outsideHandler, true), 0);
+
+                // ESC close
+                window.addEventListener('keydown', escClose, { once: true });
+            }
+
+            function escClose(e) {
+                if (e.key === 'Escape') close();
+                else window.addEventListener('keydown', escClose, { once: true });
+            }
+
+            function close() {
+                if (!pop) return;
+                pop.classList.add('hidden');
+                if (outsideHandler) {
+                    document.removeEventListener('click', outsideHandler, true);
+                    outsideHandler = null;
+                }
+            }
+
+            function init() {
+                const input = document.getElementById('planDateInput');
+                if (!input) return;
+
+                // Avoid native date picker so we can color days
+                try {
+                    input.type = 'text';
+                    input.readOnly = true;
+                    input.classList.add('cursor-pointer');
+                    input.setAttribute('title', 'Bấm để chọn ngày');
+                    input.addEventListener('click', (e) => { e.preventDefault(); open(); });
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+                    });
+                } catch(e) {}
+            }
+
+            return { init, open, close, fetchMonthStatus };
+        })();
+
+;
 
 // --- Expose handlers for inline onclick (safety) ---
 try { window.app = app; } catch(e) { /* ignore */ }
@@ -3123,6 +3637,7 @@ try { window.editModal = editModal; } catch(e) { /* ignore */ }
 try { window.importModal = importModal; } catch(e) { /* ignore */ }
 try { window.exportManager = exportManager; } catch(e) { /* ignore */ }
 try { window.reportManager = reportManager; } catch(e) { /* ignore */ }
+try { window.calendarPicker = calendarPicker; } catch(e) { /* ignore */ }
 try { window.userModal = userModal; } catch(e) { /* ignore */ }
 try { window.warningCenter = warningCenter; } catch(e) { /* ignore */ }
 try { window.masterDataManager = masterDataManager; } catch(e) { /* ignore */ }
