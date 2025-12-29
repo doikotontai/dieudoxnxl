@@ -854,10 +854,24 @@ render() {
 
                 // Sort by Date, then Title priority (Kỹ Sư/Chuyên viên), then Org, then Name
                 const _titleRank = (t) => {
-                    const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                    return 2;
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
                 };
                 data.sort((a,b) => {
                     return a._sortDate.localeCompare(b._sortDate)
@@ -1390,10 +1404,24 @@ render() {
                 if (!tbody) return;
                 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
                 const _titleRank = (t) => {
-                    const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                    return 2;
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
                 };
                 const max = 300;
                 const sorted = (people || []).slice().sort((a,b) => {
@@ -2155,11 +2183,25 @@ render() {
                     const dest = groupedByDestDate[k].dest;
                     const groupPeople = groupedByDestDate[k].people;
                     const _titleRank = (t) => {
-                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                        return 2;
-                    };
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
+                };
                     const groupSorted = (groupPeople || []).slice().sort((a,b) => {
                         return (_titleRank(a.title) - _titleRank(b.title))
                             || String(a.fullName||'').localeCompare(String(b.fullName||''))
@@ -2649,11 +2691,25 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                 Object.keys(grouped).sort().forEach(dest => {
                     const group = grouped[dest];
                     const _titleRank = (t) => {
-                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                        return 2;
-                    };
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
+                };
                     const groupSorted = (group || []).slice().sort((a,b) => {
                         return (_titleRank(a.title) - _titleRank(b.title))
                             || String(a.fullName||'').localeCompare(String(b.fullName||''))
@@ -3078,11 +3134,25 @@ deleteAllPeople: async () => {
                     const dest = groupedByDestDateTbl[k].dest;
                     const groupPeople = groupedByDestDateTbl[k].people;
                     const _titleRank = (t) => {
-                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                        return 2;
-                    };
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
+                };
                     const groupPeopleSorted = (groupPeople || []).slice().sort((a,b) => {
                         return (_titleRank(a.title) - _titleRank(b.title))
                             || String(a.fullName||'').localeCompare(String(b.fullName||''))
@@ -3228,11 +3298,25 @@ children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.P
                     const dest = groupedByDestDateTbl[k].dest;
                     const groupPeople = groupedByDestDateTbl[k].people;
                     const _titleRank = (t) => {
-                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
-                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
-                        return 2;
-                    };
+                    const s = String(t || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g,'')
+                        .replace(/\s+/g,' ')
+                        .trim();
+
+                    // Priority titles (match if title CONTAINS keyword)
+                    // - "Kỹ sư" also covers "kĩ sư" variants after diacritics removal: "ky su" / "ki su"
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ki su') || s.includes('kisu') || /\bks\b/.test(s)) return 0;
+
+                    // - "Chuyên viên"
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || /\bcv\b/.test(s)) return 1;
+
+                    // - "Đốc công"
+                    if (s.includes('doc cong') || s.includes('doccong')) return 2;
+
+                    return 3;
+                };
                     const groupPeopleSorted = (groupPeople || []).slice().sort((a,b) => {
                         return (_titleRank(a.title) - _titleRank(b.title))
                             || String(a.fullName||'').localeCompare(String(b.fullName||''))
