@@ -18,6 +18,7 @@ const firebaseConfig = {
             currentDateKey: new Date().toISOString().split('T')[0].replace(/-/g, ''),
             orgs: [],
             isPlanLocked: false,
+            planDocExists: false,
             currentPlanPeople: [],
             unsubscribePlan: null,
             users: [],
@@ -1785,7 +1786,10 @@ render() {
                     const batch = db.batch();
                     const collectionRef = getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people');
                     const planRef = getPublicColl('dailyPlans').doc(state.currentDateKey);
-                    batch.set(planRef, { updatedAt: new Date(), status: state.isPlanLocked ? 'Locked' : 'Draft' }, { merge: true });
+                    // Touch day doc if it already exists or user is dispatcher. (If workshop bị chặn create day doc, import vẫn tiếp tục.)
+                    if (state.userRole === 'dispatcher' || state.planDocExists) {
+                        batch.set(planRef, { updatedAt: new Date(), status: state.isPlanLocked ? 'Locked' : 'Draft' }, { merge: true });
+                    }
 
                     newPeople.forEach(p => {
                         const newRef = collectionRef.doc();
@@ -1811,6 +1815,15 @@ render() {
 
                     try {
                         await batch.commit();
+                        // Best-effort: tạo day doc nếu chưa có (để ngày mới hiện 'DRAFT' nếu rules cho phép). Không chặn import nếu bị deny.
+                        if (state.userRole !== 'dispatcher' && !state.planDocExists) {
+                            try {
+                                await planRef.set({ updatedAt: new Date(), status: 'Draft' }, { merge: true });
+                                state.planDocExists = true;
+                            } catch (e) {
+                                console.warn('createPlanDoc denied (ok):', e?.message || e);
+                            }
+                        }
                         audit.log('IMPORT', { count: newPeople.length, destination: destination || '', nvsxNo: nvsx || '', reason: (importModal.mode==='form' ? 'import_form' : 'import_excel') });
                         masterDataManager.saveToMaster(newPeople); 
                         utils.showToast(`Đã import xong`, 'success');
@@ -2081,7 +2094,14 @@ render() {
                         utils.showToast("Đã cập nhật", "success");
                     } else {
                         updatedData.createdAt = new Date(); updatedData.importedBy = state.currentUser.email; updatedData.orgId = state.userRole === 'dispatcher' ? 'XNXL' : state.userOrgId;
-                        await getPublicColl('dailyPlans').doc(state.currentDateKey).set({ updatedAt: new Date(), status: state.isPlanLocked ? 'Locked' : 'Draft' }, { merge: true });
+                        // Touch day doc (best-effort). Workshop must be able to add/import even when day doc chưa tồn tại.
+                        const _planRef = getPublicColl('dailyPlans').doc(state.currentDateKey);
+                        try {
+                            await _planRef.set({ updatedAt: new Date(), status: state.isPlanLocked ? 'Locked' : 'Draft' }, { merge: true });
+                            state.planDocExists = true;
+                        } catch (e) {
+                            console.warn('touchPlanDoc failed (non-blocking):', e?.message || e);
+                        }
                         await getPublicColl('dailyPlans').doc(state.currentDateKey).collection('people').add(updatedData);
                         audit.log('ADD_PERSON', { staffNo: updatedData.staffNo, fullName: updatedData.fullName, destination: updatedData.destination });
                         utils.showToast("Đã thêm mới", "success");
@@ -2633,6 +2653,7 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                 // UPDATED PATH: Use public/data/dailyPlans
                 getPublicColl('dailyPlans').doc(state.currentDateKey).get().then(doc => {
                     state.isPlanLocked = false;
+                    state.planDocExists = doc.exists;
                     if(doc.exists) {
                         state.isPlanLocked = doc.data().status === 'Locked';
                         document.getElementById('planStatus').innerText = state.isPlanLocked ? 'ĐÃ KHÓA' : 'DRAFT';
