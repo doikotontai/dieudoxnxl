@@ -852,11 +852,20 @@ render() {
                     return;
                 }
 
-                // Sort by Sortable Date, then Org, then Name
+                // Sort by Date, then Title priority (Kỹ Sư/Chuyên viên), then Org, then Name
+                const _titleRank = (t) => {
+                    const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                    return 2;
+                };
                 data.sort((a,b) => {
-                    return a._sortDate.localeCompare(b._sortDate) || a.orgName.localeCompare(b.orgName);
+                    return a._sortDate.localeCompare(b._sortDate)
+                        || (_titleRank(a.title) - _titleRank(b.title))
+                        || String(a.orgName||'').localeCompare(String(b.orgName||''))
+                        || String(a.fullName||'').localeCompare(String(b.fullName||''));
                 });
-                
+
                 const exportData = data.map((p, idx) => ({
                     "STT": idx + 1,
                     "Ngày đăng ký": p._reportDate,
@@ -1380,8 +1389,19 @@ render() {
                 const more = document.getElementById('prevPeopleMore');
                 if (!tbody) return;
                 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const _titleRank = (t) => {
+                    const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                    if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                    if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                    return 2;
+                };
                 const max = 300;
-                const slice = (people || []).slice(0, max);
+                const sorted = (people || []).slice().sort((a,b) => {
+                    return (_titleRank(a.title) - _titleRank(b.title))
+                        || String(a.fullName||'').localeCompare(String(b.fullName||''))
+                        || String(a.staffNo||'').localeCompare(String(b.staffNo||''));
+                });
+                const slice = sorted.slice(0, max);
                 tbody.innerHTML = slice.map((p, i) => `
                     <tr>
                         <td class="px-3 py-2 text-slate-500">${i + 1}</td>
@@ -1392,7 +1412,7 @@ render() {
                     </tr>
                 `).join('');
                 if (more) {
-                    if ((people || []).length > max) {
+                    if (sorted.length > max) {
                         more.classList.remove('hidden');
                         more.textContent = `Hiển thị ${max}/${people.length} người (danh sách quá dài). Vẫn có thể Import đầy đủ.`;
                     } else {
@@ -2134,6 +2154,17 @@ render() {
                 groupKeys.forEach(k => {
                     const dest = groupedByDestDate[k].dest;
                     const groupPeople = groupedByDestDate[k].people;
+                    const _titleRank = (t) => {
+                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                        return 2;
+                    };
+                    const groupSorted = (groupPeople || []).slice().sort((a,b) => {
+                        return (_titleRank(a.title) - _titleRank(b.title))
+                            || String(a.fullName||'').localeCompare(String(b.fullName||''))
+                            || String(a.staffNo||'').localeCompare(String(b.staffNo||''));
+                    });
                     const planId = groupedByDestDate[k].planId;
                     const dateForHeader = utils.formatPlanIdHeader(planId, dateDisplayString);
             const group = grouped[dest];
@@ -2151,7 +2182,7 @@ render() {
                         <div class="font-bold text-blue-800 text-base flex items-center">
                             <i class="fas fa-map-marker-alt mr-2 text-blue-500"></i> ${esc(dest)}
                         </div>
-                        <div class="text-xs bg-white text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</div>
+                        <div class="text-xs bg-white text-blue-600 px-2 py-1 rounded font-bold border border-blue-100">${groupSorted.length} người</div>
                     </div>
                     <div class="p-4 space-y-3">
                         <div class="text-sm text-slate-700"><span class="font-bold">Số NVSX:</span> ${esc(uniqueNVSX || '--')}</div>
@@ -2173,7 +2204,7 @@ render() {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    ${group.map((p, i) => `
+                                    ${groupSorted.map((p, i) => `
                                         <tr>
                                             <td class="px-3 py-2 text-center text-slate-500 font-mono">${i + 1}</td>
                                             <td class="px-3 py-2 font-semibold text-slate-700">${esc(p.fullName || '')}</td>
@@ -2617,6 +2648,17 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
 
                 Object.keys(grouped).sort().forEach(dest => {
                     const group = grouped[dest];
+                    const _titleRank = (t) => {
+                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                        return 2;
+                    };
+                    const groupSorted = (group || []).slice().sort((a,b) => {
+                        return (_titleRank(a.title) - _titleRank(b.title))
+                            || String(a.fullName||'').localeCompare(String(b.fullName||''))
+                            || String(a.staffNo||'').localeCompare(String(b.staffNo||''));
+                    });
                     const meta = utils.getGroupFinalMeta(group);
                     const allNvsx = meta.nvsxStr;
                     const taskLines = meta.taskLines;
@@ -2654,7 +2696,7 @@ document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                                     </div>
                                 </div>
                                 <div class="flex flex-col items-end gap-2">
-                                <span class="text-xs bg-white text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">${group.length} người</span>
+                                <span class="text-xs bg-white text-blue-700 px-2 py-1 rounded font-bold border border-blue-100">${groupSorted.length} người</span>
                                 <button type="button" class="js-add-to-group bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-sm ${canAddToGroup ? '' : 'opacity-50 cursor-not-allowed'}" data-dest="${escHtml(dest)}" ${canAddToGroup ? '' : 'disabled'}><i class="fas fa-plus mr-1"></i> Thêm</button>
                             </div>
                             </div>
@@ -3035,6 +3077,17 @@ deleteAllPeople: async () => {
                 groupKeysTbl.forEach(k => {
                     const dest = groupedByDestDateTbl[k].dest;
                     const groupPeople = groupedByDestDateTbl[k].people;
+                    const _titleRank = (t) => {
+                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                        return 2;
+                    };
+                    const groupPeopleSorted = (groupPeople || []).slice().sort((a,b) => {
+                        return (_titleRank(a.title) - _titleRank(b.title))
+                            || String(a.fullName||'').localeCompare(String(b.fullName||''))
+                            || String(a.staffNo||'').localeCompare(String(b.staffNo||''));
+                    });
                     const planId = groupedByDestDateTbl[k].planId;
                     const dateForHeader = utils.formatPlanIdHeader(planId, dateDisplayString);
 
@@ -3060,7 +3113,7 @@ deleteAllPeople: async () => {
                         ] 
                     }));
 
-                    groupPeople.forEach((p, i) => {
+                    groupPeopleSorted.forEach((p, i) => {
                         tableRows.push(new TableRow({
                             height: { value: 400, rule: HeightRule.AT_LEAST },
                             children: [
@@ -3174,6 +3227,17 @@ children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.P
                 groupKeysTbl.forEach(k => {
                     const dest = groupedByDestDateTbl[k].dest;
                     const groupPeople = groupedByDestDateTbl[k].people;
+                    const _titleRank = (t) => {
+                        const s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                        if (s.includes('ky su') || s.includes('kysu') || s.includes('ks')) return 0;
+                        if (s.includes('chuyen vien') || s.includes('chuyenvien') || s.includes('cv')) return 1;
+                        return 2;
+                    };
+                    const groupPeopleSorted = (groupPeople || []).slice().sort((a,b) => {
+                        return (_titleRank(a.title) - _titleRank(b.title))
+                            || String(a.fullName||'').localeCompare(String(b.fullName||''))
+                            || String(a.staffNo||'').localeCompare(String(b.staffNo||''));
+                    });
                     const planId = groupedByDestDateTbl[k].planId;
                     const dateForHeader = utils.formatPlanIdHeader(planId, dateDisplayString);
                     let dName = dest;
@@ -3185,7 +3249,7 @@ children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.P
                             <td style="border:1px solid #000; padding:3mm; background:#D9D9D9; font-weight:bold; color:#C00000;" colspan="4">${esc(dName)} (${esc(dateForHeader)})</td>
                         </tr>
                     `;
-                    groupPeople.forEach((p, i) => {
+                    groupPeopleSorted.forEach((p, i) => {
                         tableRows += `
                             <tr>
                                 <td style="border:1px solid #000; padding:2.5mm; text-align:center;">${i+1}</td>
