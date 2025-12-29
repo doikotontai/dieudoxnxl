@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>XNXL - Đăng Ký Đi Biển</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- FontAwesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- SheetJS & Docx -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- HTML to PDF (for fixed-form PDF export) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Table Sticky Header */
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            z-index: 20; 
+            background-color: #f1f5f9; /* slate-100 */
+            color: #475569;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+    
+        /* Collapsible task content (10 lines) */
+        .task-collapsed { 
+            max-height: 11.5em; 
+            overflow: hidden; 
+            position: relative; 
+        }
+        .task-collapsed::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 2.6em;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(239,246,255,1));
+            pointer-events: none;
+        }
+
+        
+        html.dark .task-collapsed::after {
+            background: linear-gradient(to bottom, rgba(15,23,42,0), rgba(7,11,20,0.92));
+        }
+/* Theme (light/dark) - gentle light background, professional dark */
+        html { color-scheme: light; }
+        html:not(.dark) {
+            --app-bg: #f5f6f8;
+            --app-surface: #ffffff;
+            --app-surface2: #f8fafc;
+            --app-text: #0f172a;
+            --app-muted: #334155;
+            --app-muted2: #64748b;
+            --app-border: #e2e8f0;
+            --app-input: #ffffff;
+        }
+        html.dark {
+            color-scheme: dark;
+            --app-bg: #0b1220;
+            --app-surface: #0f172a;
+            --app-surface2: #0b1220;
+            --app-text: #e2e8f0;
+            --app-muted: #cbd5e1;
+            --app-muted2: #94a3b8;
+            --app-border: #1f2a44;
+            --app-input: #0b1220;
+        }
+        body { background-color: var(--app-bg) !important; color: var(--app-text) !important; transition: background-color .25s ease, color .25s ease; }
+        .bg-white, .bg-slate-50, .bg-gray-50 { background-color: var(--app-surface) !important; }
+        .bg-slate-100, .bg-gray-100 { background-color: var(--app-surface2) !important; }
+        .text-slate-900, .text-gray-900, .text-slate-800 { color: var(--app-text) !important; }
+        .text-slate-700, .text-gray-700, .text-slate-600, .text-gray-600 { color: var(--app-muted) !important; }
+        .text-slate-500, .text-gray-500, .text-slate-400 { color: var(--app-muted2) !important; }
+        .border-slate-200, .border-slate-300, .border-gray-200, .border-gray-300 { border-color: var(--app-border) !important; }
+        input, textarea, select {
+            background-color: var(--app-input) !important;
+            color: var(--app-text) !important;
+            border-color: var(--app-border) !important;
+        }
+        ::-webkit-scrollbar-track { background: var(--app-surface2) !important; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; }
+        html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+        /* Login error box in dark */
+        html.dark #loginError { background: rgba(127,29,29,.25) !important; border-color: rgba(239,68,68,.35) !important; color: #fecaca !important; }
+
+
+    
+        /* ===== Darkmode giống ndt.io.vn (override) ===== */
+        .bg-gradient-mesh{
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity .5s ease;
+            background:
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.18) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.12) 0px, transparent 50%);
+            background-color: #070b14;
+            pointer-events: none;
+        }
+        html.dark .bg-gradient-mesh{ opacity: 1; }
+
+        /* Token màu dịu mắt */
+        html:not(.dark){
+            --app-bg: #f8fafc;
+            --app-surface: rgba(255,255,255,.88);
+            --app-surface2: #f1f5f9;
+            --app-text: #0f172a;
+            --app-muted: #334155;
+            --app-muted2: #64748b;
+            --app-border: #e2e8f0;
+            --app-input: #ffffff;
+        }
+        html.dark{
+            --app-bg: #070b14;
+            --app-surface: rgba(17,24,39,.62);
+            --app-surface2: rgba(17,24,39,.42);
+            --app-text: #e5e7eb;
+            --app-muted: #cbd5e1;
+            --app-muted2: #94a3b8;
+            --app-border: rgba(148,163,184,.14);
+            --app-input: rgba(17,24,39,.72);
+        }
+
+        /* Glass */
+        .glass-panel{
+            background: rgba(255,255,255,.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--app-border);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.06);
+        }
+        html.dark .glass-panel{
+            background: linear-gradient(180deg, rgba(15,23,42,.78), rgba(15,23,42,.60));
+            border-color: rgba(148,163,184,.12);
+            box-shadow: 0 12px 30px rgba(0,0,0,.35);
+        }
+
+        /* Nút đổi theme không che UI */
+        .theme-toggle-btn{
+            width: 36px; height: 36px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            box-shadow: 0 1px 2px rgba(0,0,0,.04);
+        }
+        .theme-toggle-btn:hover{ background:#e2e8f0; }
+        html.dark .theme-toggle-btn{
+            background: rgba(17,24,39,.62);
+            border-color: rgba(148,163,184,.14);
+            color: #fde047;
+            box-shadow: 0 10px 22px rgba(0,0,0,.35);
+        }
+        html.dark .theme-toggle-btn:hover{ background: rgba(30,41,59,.72); }
+
+        /* Làm dịu bảng ở dark */
+        html.dark table{ background: transparent; }
+        html.dark thead th{ background-color: rgba(30,41,59,.55) !important; color: #e2e8f0; box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+        html.dark tbody tr:hover{ background: rgba(148,163,184,.07) !important; }
+
+    
+
+        /* ===== Fix darkmode khung Giàn/NVSX/CV ===== */
+        html.dark .bg-blue-50\/50{
+            background: rgba(255,255,255,0.045) !important;
+            border-color: rgba(148,163,184,0.18) !important;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 40px rgba(0,0,0,0.28);
+        }
+        html.dark .border-blue-100{ border-color: rgba(148,163,184,0.18) !important; }
+        html.dark .text-blue-800{ color: rgba(226,232,240,0.96) !important; }
+        html.dark .text-blue-500{ color: rgba(96,165,250,0.95) !important; }
+        html.dark .text-blue-600{ color: rgba(147,197,253,0.95) !important; }
+        html.dark .text-blue-700{ color: rgba(191,219,254,0.95) !important; }
+        html.dark .bg-white.text-blue-700{
+            background: rgba(255,255,255,0.06) !important;
+            border-color: rgba(148,163,184,0.18) !important;
+        }
+
+
+        /* ===== App shell v2: left sidebar + modern nav ===== */
+        .nav-item{
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .5rem .5rem;
+            border-radius: .95rem;
+            font-weight: 700;
+            font-size: .75rem;
+            line-height: 1.05rem;
+            color: var(--app-muted);
+            transition: background-color .18s ease, color .18s ease, transform .18s ease;
+            user-select: none;
+        }
+        .nav-item:hover{
+            background: rgba(59,130,246,.10);
+            color: #2563eb;
+        }
+        html.dark .nav-item:hover{
+            background: rgba(96,165,250,.12);
+            color: #bfdbfe;
+        }
+        .nav-item:active{ transform: translateY(1px); }
+        .nav-item.active{
+            background: rgba(37,99,235,.15);
+            color: #1d4ed8;
+            border: 1px solid rgba(37,99,235,.18);
+        }
+        html.dark .nav-item.active{
+            background: rgba(96,165,250,.16);
+            color: #e0f2fe;
+            border-color: rgba(255,255,255,.06);
+        }
+        .nav-ico{
+            width: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: .95;
+        }
+        /* Mobile sidebar initial state */
+        @media (min-width: 768px){
+            #appSidebar{ transform: none !important; }
+            #sidebarBackdrop{ display: none !important; }
+        }
+
+
+        /* ===== Darkmode v3 (luxe + contrast) ===== */
+        html.dark{
+            --app-bg: #070b14;
+            --app-surface: #0f172a;
+            --app-surface2: #111b2f;
+            --app-text: #e5e7eb;
+            --app-muted: #cbd5e1;
+            --app-muted2: #94a3b8;
+            --app-border: #1f2a44;
+            --app-input: #0b1220;
+        }
+        html.dark body{ background-color: var(--app-bg) !important; }
+        html.dark .bg-gradient-mesh{
+            opacity: .90;
+            background-color: var(--app-bg);
+        }
+
+        /* Glass (dark) — richer, less foggy */
+        html.dark .glass-panel{
+            background: linear-gradient(180deg, rgba(15,23,42,.82), rgba(15,23,42,.66)) !important;
+            border-color: rgba(148,163,184,.12) !important;
+            box-shadow: 0 14px 34px rgba(0,0,0,.42);
+        }
+/* Fix odd semi-transparent tailwind backgrounds */
+        html.dark .bg-slate-100\/40{ background: transparent !important; }
+        html.dark .bg-white\/60{ background: rgba(15,23,42,.70) !important; }
+        html.dark .bg-white\/80{ background: rgba(15,23,42,.82) !important; }
+        html.dark .dark\:bg-slate-900\/20{ background: rgba(15,23,42,.62) !important; }
+        html.dark .dark\:bg-slate-900\/30{ background: rgba(15,23,42,.62) !important; }
+
+        /* Borders used in topbar stats area */
+        html.dark .border-slate-100{ border-color: rgba(255,255,255,.08) !important; }
+        html.dark .border-slate-200\/60{ border-color: rgba(255,255,255,.08) !important; }
+        html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]){ border-color: rgba(255,255,255,.08) !important; }
+        html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]){ border-color: rgba(255,255,255,.06) !important; }
+
+        /* Table header/body clarity */
+        html.dark thead th{
+            background-color: rgba(17,24,39,.90) !important;
+            color: #e6edf6 !important;
+            box-shadow: 0 1px 0 rgba(255,255,255,.06);
+        }
+        html.dark tbody tr{ border-color: rgba(255,255,255,.06) !important; }
+        html.dark tbody tr:hover{ background: rgba(147,164,189,.08) !important; }
+
+        /* Date label chip */
+        html.dark label[for], html.dark .date-label-float{
+            background: rgba(7,11,20,.92) !important;
+            color: var(--app-muted2) !important;
+            border-radius: .5rem;
+        }
+        html.dark #planDateInput + label{
+            background: rgba(7,11,20,.92) !important;
+        }
+
+        /* Modals: overlay + panel contrast */
+        html.dark #exportModal,
+        html.dark #exportPreviewModal,
+        html.dark #reportModal,
+        html.dark #editModal,
+        html.dark #importModal,
+        html.dark #userModal,
+        html.dark #warningModal,
+        html.dark #auditModal{
+            background: rgba(2,6,23,.78) !important;
+        }
+        html.dark #exportModal > div,
+        html.dark #exportPreviewModal > div,
+        html.dark #reportModal > div,
+        html.dark #editModal > div,
+        html.dark #importModal > div,
+        html.dark #userModal > div,
+        html.dark #warningModal > div,
+        html.dark #auditModal > div{
+            background: rgba(15,23,42,.92) !important;
+            border: 1px solid rgba(255,255,255,.07) !important;
+        }
+        html.dark #exportModal .bg-slate-50,
+        html.dark #exportPreviewModal .bg-slate-50,
+        html.dark #reportModal .bg-slate-50{
+            background: rgba(17,24,39,.72) !important;
+        }
+        html.dark #exportModal .border-slate-200,
+        html.dark #exportPreviewModal .border-slate-200,
+        html.dark #reportModal .border-slate-200{
+            border-color: rgba(255,255,255,.08) !important;
+        }
+
+        /* Sidebar tool buttons: keep colors but reduce glare */
+        /* Tool tiles (Xuất / Báo cáo) */
+        .tool-tile{
+            height: 52px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            line-height: 1;
+        }
+        .tool-tile .tool-ico{
+            font-size: 16px;
+            line-height: 1;
+            opacity: .96;
+        }
+        .tool-tile .tool-label{
+            line-height: 1.05;
+            text-align: center;
+            opacity: .98;
+        }
+        html.dark .tool-tile{
+            box-shadow: 0 14px 26px rgba(0,0,0,.40);
+        }
+        html.dark .tool-tile:hover{
+            filter: brightness(1.05);
+        }
+
+        html.dark #btnExport,
+        html.dark #btnReport{
+            box-shadow: 0 8px 18px rgba(0,0,0,.30);
+        }
+        html.dark #btnDeleteAll{
+            background: rgba(15,23,42,.82) !important;
+            border-color: rgba(239,68,68,.35) !important;
+        }
+
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+<!-- Background (dark mode mesh) -->
+<div aria-hidden="true" class="bg-gradient-mesh"></div>
+<!-- Global Loading -->
+<div class="fixed inset-0 bg-white dark:bg-slate-950 z-[60] flex items-center justify-center hidden" id="loadingOverlay">
+<div class="flex flex-col items-center">
+<div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-600 h-10 w-10 mb-3"></div>
+<p class="text-slate-600 font-semibold text-sm animate-pulse" id="loadingText">Đang xử lý...</p>
+</div>
+</div>
+<!-- Toast Notification -->
+<div class="fixed top-6 right-6 z-[70] hidden px-6 py-4 rounded-lg shadow-xl text-white font-medium transform transition-all duration-300 translate-y-0 opacity-100 flex items-center gap-3" id="toast"></div>
+<!-- AUTH SCREEN -->
+<div class="flex-grow flex items-center justify-center bg-transparent p-6" id="authScreen">
+<div class="glass-panel p-10 rounded-3xl w-full max-w-md border border-slate-200 dark:border-white/5">
+<div class="text-center mb-8">
+<div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg text-white text-2xl">
+<i class="fas fa-anchor"></i>
+</div>
+
+
+</div>
+<form class="space-y-5" id="loginForm">
+<div>
+<label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Tài khoản</label>
+<div class="relative">
+<input autocomplete="username" class="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" id="email" placeholder="Nhập user..." required="" type="text"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Mật khẩu</label>
+<input class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none" id="password" placeholder="••••••••" required="" type="password"/>
+</div>
+<div class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" id="loginError"></div>
+<button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition transform active:scale-95" type="submit">Đăng nhập</button>
+</form>
+<div class="mt-6 text-center text-xs text-slate-400 border-t pt-4">
+<p>Liên hệ Admin để được cấp tài khoản</p>
+</div>
+</div>
+</div>
+<!-- APP SHELL -->
+<div class="hidden flex-col h-full" id="appShell">
+<!-- Mobile backdrop -->
+<div aria-hidden="true" class="fixed inset-0 bg-slate-950 z-40 hidden md:hidden" id="sidebarBackdrop"></div>
+<div class="flex h-full">
+<!-- Sidebar -->
+<aside class="fixed md:static inset-y-0 left-0 z-50 w-36 md:w-36 transform -translate-x-full md:translate-x-0 transition duration-300 ease-out glass-panel border-r border-slate-200 dark:border-white/5 flex flex-col" id="appSidebar">
+<!-- Brand -->
+<div class="h-14 flex items-center px-4 border-b border-slate-200 dark:border-white/5">
+
+<div class="min-w-0">
+<div class="text-sm font-extrabold tracking-tight text-slate-800 whitespace-nowrap">ĐIỀU ĐỘ BIỂN</div>
+<span class="block text-[10px] font-semibold text-slate-500 truncate" id="userBadge"></span>
+</div>
+</div>
+<!-- Nav -->
+<div class="px-3 py-3 flex-1 overflow-y-auto">
+<nav class="space-y-1">
+<button class="nav-item active" id="navDashboard" onclick="app.showDashboard()">
+<span class="nav-ico"><i class="fas fa-calendar-alt"></i></span>
+<span>Kế hoạch</span>
+</button>
+<button class="nav-item hidden" id="navSettings" onclick="app.showSettings()">
+<span class="nav-ico"><i class="fas fa-cogs"></i></span>
+<span>Cấu hình</span>
+</button>
+<button class="nav-item hidden" id="navAudit" onclick="auditModal.open()">
+<span class="nav-ico"><i class="fas fa-clipboard-list"></i></span>
+<span>Nhật ký</span>
+</button>
+</nav>
+<!-- Utilities -->
+<div class="mt-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-white/5 p-3">
+<div class="flex items-center justify-end gap-2">
+
+<button aria-pressed="false" class="theme-toggle-btn" id="themeToggle" title="Đổi chế độ sáng/tối" type="button">
+<i class="fa-solid fa-moon"></i>
+<span class="sr-only">Đổi chế độ sáng/tối</span>
+</button>
+</div>
+<!-- Login info display -->
+<div class="mt-3 text-xs border-t border-slate-200/60 dark:border-white/5 pt-3" id="lastLoginInfo">
+<div class="text-slate-400">Login lần cuối</div>
+<div class="font-bold text-slate-700" id="lastLoginVal">--</div>
+</div>
+</div>
+<!-- Tools -->
+<div class="mt-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-white/5 p-3">
+<div class="flex items-center justify-between">
+<div class="text-[10px] font-bold uppercase text-slate-400">Công cụ</div>
+</div>
+<div class="mt-3 space-y-2">
+<button class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition" id="btnAdd" onclick="editModal.open()">
+<i class="fas fa-plus"></i><span>Thêm</span>
+</button>
+<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition" id="btnImport" onclick="importModal.open()">
+<i class="fas fa-file-excel"></i><span>Import</span>
+</button>
+<button class="hidden w-full bg-white/80 hover:bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition" id="btnDeleteAll" onclick="app.deleteAllPeople()">
+<i class="fas fa-trash-alt"></i><span>Xóa</span>
+</button>
+<button class="hidden w-full bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition" id="btnLock" onclick="app.toggleLockPlan()">
+<i class="fas fa-lock"></i><span>Khóa</span>
+</button>
+<div class="grid grid-cols-2 gap-2 pt-1">
+<button class="hidden tool-tile bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition active:scale-[0.98]" id="btnExport" onclick="exportManager.open()" type="button">
+  <span class="tool-ico"><i class="fa-solid fa-download"></i></span>
+  <span class="tool-label">Xuất</span>
+</button>
+<button class="hidden tool-tile bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-sm transition active:scale-[0.98]" id="btnReport" onclick="reportManager.open()" type="button">
+  <span class="tool-ico"><i class="fa-solid fa-chart-line"></i></span>
+  <span class="tool-label">Báo cáo</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<div class="p-3 border-t border-slate-200 dark:border-white/5">
+<button class="nav-item w-full text-red-600 hover:text-red-700 hover:bg-red-50/60 dark:hover:bg-red-900/20" onclick="app.logout()">
+<span class="nav-ico"><i class="fas fa-sign-out-alt"></i></span>
+<span>Đăng xuất</span>
+</button>
+</div>
+</aside>
+<!-- Content -->
+<div class="flex-1 flex flex-col min-w-0">
+<!-- Topbar (mobile only toggle + title) -->
+<header class="sticky top-0 z-30 glass-panel border-b border-slate-200 dark:border-white/5">
+  <div class="px-4 md:px-6 py-2">
+    <!-- Row 1: mobile menu + quick actions -->
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button aria-label="Mở menu" class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-900/30" id="sidebarToggle" type="button">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 dark:border-white/5 text-red-600 hover:bg-red-50/60 dark:hover:bg-red-900/20" onclick="app.logout()" title="Đăng xuất">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Date bar moved to top -->
+    <div class="mt-2 flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <input class="border border-slate-300 rounded px-3 py-1.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" id="planDateInput" type="date" onchange="app.changeDate()"/>
+          <label class="absolute -top-2 left-2 bg-white px-1 text-[10px] font-bold text-slate-400 uppercase">Ngày</label>
+        </div>
+        <div class="px-3 py-1.5 rounded text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider" id="planStatus">--</div>
+      </div>
+
+      <div class="flex flex-1 justify-center gap-6 md:gap-10 text-center min-w-[220px] border-l border-r border-slate-100 px-4">
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Tổng</div>
+          <div class="text-xl font-bold text-slate-700 leading-none mt-0.5" id="statTotal">0</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-emerald-500 font-bold uppercase">Đi biển</div>
+          <div class="text-xl font-bold text-emerald-600 leading-none mt-0.5" id="statOffshore">0</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-orange-400 font-bold uppercase">Về bờ</div>
+          <div class="text-xl font-bold text-orange-500 leading-none mt-0.5" id="statReturn">0</div>
+        </div>
+        <div class="opacity-30 transition-opacity duration-300" id="warningStatBox">
+          <div class="text-[10px] text-red-500 font-bold uppercase">Cảnh báo</div>
+          <div class="text-xl font-bold text-red-600 leading-none mt-0.5" id="statWarnings">0</div>
+        </div>
+      </div>
+
+      <div class="relative w-full sm:w-64">
+        <input autocomplete="off" class="w-full border border-slate-300 rounded px-3 py-1.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm pr-8" id="quickSearch" placeholder="Tìm nhanh..." type="text"/>
+        <button class="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 px-1" id="btnClearSearch" title="Xóa tìm kiếm">×</button>
+      </div>
+    </div>
+  </div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-hidden flex relative bg-slate-100/40">
+<!-- Dashboard View -->
+<div class="w-full h-full flex flex-col p-4 md:p-6 space-y-4 overflow-y-auto" id="dashboardView">
+<div class="flex-grow glass-panel rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden flex flex-col relative">
+<div class="overflow-auto flex-grow p-0" id="planContent">
+<!-- Content populated by JS -->
+</div>
+</div>
+</div>
+<!-- Settings View (Admin only) -->
+<div class="w-full h-full hidden p-4 md:p-6 overflow-y-auto" id="settingsView">
+<div class="max-w-5xl mx-auto space-y-6">
+<h2 class="text-2xl font-bold text-slate-800">Quản trị hệ thống</h2>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="space-y-6 lg:col-span-1">
+<div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+<h3 class="font-bold text-slate-700 border-b pb-2 mb-4 text-sm uppercase">Danh mục Đơn vị</h3>
+<ul class="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2 custom-scrollbar" id="orgList"></ul>
+<div class="flex space-x-2 mt-4">
+<input class="border border-slate-300 p-2 rounded text-xs flex-grow focus:ring-1 focus:ring-blue-500 outline-none" id="newOrgName" placeholder="Tên đơn vị..." type="text"/>
+<button class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition" onclick="app.addOrg()">Thêm</button>
+</div>
+</div>
+<div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+<h3 class="font-bold text-slate-700 border-b pb-2 mb-4 text-sm uppercase">Cấu hình chữ ký</h3>
+<div class="space-y-3">
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Tiêu đề (Phải)</label>
+<input class="w-full border border-slate-300 p-2 rounded text-xs outline-none" id="sigApprover" placeholder="VD: TRƯỞNG BAN TTĐĐSX" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Họ Tên Người duyệt</label>
+<input class="w-full border border-slate-300 p-2 rounded text-xs outline-none" id="sigApproverName" placeholder="VD: Nguyễn Văn A" type="text"/>
+</div>
+<button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded w-full text-xs font-bold shadow-sm transition" onclick="app.saveSettings()">Lưu Cấu Hình</button>
+</div>
+</div>
+</div>
+<div class="lg:col-span-2">
+<div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 h-full flex flex-col">
+<div class="flex justify-between items-center border-b pb-2 mb-4">
+<h3 class="font-bold text-slate-700 text-sm uppercase">Quản lý Tài khoản</h3>
+<button class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm flex items-center" onclick="userModal.open()">
+<i class="fas fa-user-plus mr-1"></i> Thêm User
+                                    </button>
+</div>
+<div class="overflow-auto flex-grow">
+<table class="min-w-full divide-y divide-slate-200 text-xs">
+<thead class="bg-slate-50">
+<tr>
+<th class="px-4 py-2 text-left text-slate-600">Email</th>
+<th class="px-4 py-2 text-left text-slate-600">Tên hiển thị</th>
+<th class="px-4 py-2 text-left text-slate-600">Vai trò</th>
+<th class="px-4 py-2 text-left text-slate-600">Đơn vị</th>
+<th class="px-4 py-2 text-right text-slate-600">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100" id="userListBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</div>
+<!-- MODALS -->
+<!-- REPORT MODAL -->
+<div class="fixed inset-0 bg-slate-950 z-50 hidden flex items-center justify-center p-4" id="reportModal">
+<div class="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col">
+<div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+<h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-chart-bar text-purple-600 mr-2"></i> Báo Cáo Số Liệu</h3>
+<button class="text-slate-400 hover:text-slate-600" onclick="reportManager.close()"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-6 space-y-5">
+<!-- Mode Selector -->
+<div class="flex bg-slate-100 p-1 rounded-lg">
+<button class="flex-1 py-1.5 text-xs font-bold rounded-md transition bg-white shadow text-slate-800" id="rptModeDays" onclick="reportManager.setMode('days')">Theo Ngày</button>
+<button class="flex-1 py-1.5 text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-800" id="rptModeMonth" onclick="reportManager.setMode('month')">Theo Tháng</button>
+<button class="flex-1 py-1.5 text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-800" id="rptModeYear" onclick="reportManager.setMode('year')">Cả Năm</button>
+</div>
+<!-- Input Area -->
+<div id="rptInputArea">
+<!-- Days Input -->
+<div class="space-y-3" id="rptDaysView">
+<div class="flex gap-2">
+<input class="border border-slate-300 rounded px-3 py-2 text-sm flex-grow focus:ring-1 focus:ring-purple-500 outline-none" id="rptDateInput" type="date"/>
+<button class="bg-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded text-sm font-bold hover:bg-purple-100 transition" onclick="reportManager.addDate()">Thêm</button>
+</div>
+<div class="bg-slate-50 rounded border border-slate-200 p-2 h-24 overflow-y-auto custom-scrollbar">
+<ul class="space-y-1" id="rptDateList"></ul>
+</div>
+</div>
+<!-- Month Input -->
+<div class="hidden" id="rptMonthView">
+<label class="block text-xs font-bold text-slate-500 mb-1">Chọn Tháng:</label>
+<input class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none" id="rptMonthInput" type="month"/>
+</div>
+<!-- Year Input -->
+<div class="hidden" id="rptYearView">
+<label class="block text-xs font-bold text-slate-500 mb-1">Chọn Năm:</label>
+<select class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none" id="rptYearInput">
+<!-- JS will populate years -->
+</select>
+<p class="text-xs text-orange-500 mt-2 italic"><i class="fas fa-exclamation-circle"></i> Lưu ý: Xuất cả năm có thể mất vài phút.</p>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="hidden" id="rptProgress">
+<div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+<span>Đang tải dữ liệu...</span>
+<span id="rptProgressPct">0%</span>
+</div>
+<div class="w-full bg-slate-200 rounded-full h-2.5">
+<div class="bg-purple-600 h-2.5 rounded-full" id="rptProgressBar" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-lg">
+<button class="px-4 py-2 bg-white border border-slate-300 rounded text-sm font-medium hover:bg-slate-50" onclick="reportManager.close()">Hủy</button>
+<button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-bold shadow-sm" onclick="reportManager.processReport()">Xuất Excel</button>
+</div>
+</div>
+</div>
+<!-- Export DOCX Modal (Existing) -->
+<div class="fixed inset-0 bg-slate-950 z-50 hidden flex items-center justify-center p-4" id="exportModal">
+<div class="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col">
+<div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+<h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-file-word text-blue-600 mr-2"></i> Xuất Kế Hoạch (DOCX)</h3>
+<button class="text-slate-400 hover:text-slate-600" onclick="exportManager.close()"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-5 space-y-4">
+<div class="space-y-2">
+<label class="text-xs font-bold text-slate-500 uppercase">Thêm ngày xuất:</label>
+<div class="flex gap-2">
+<input class="border border-slate-300 rounded px-3 py-2 text-sm flex-grow focus:ring-1 focus:ring-blue-500 outline-none" id="exportDateInput" type="date"/>
+<button class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded text-sm font-bold hover:bg-blue-100 transition" onclick="exportManager.addDate()">Thêm</button>
+</div>
+</div>
+<div class="bg-slate-50 rounded border border-slate-200 p-3 h-40 overflow-y-auto custom-scrollbar">
+<ul class="space-y-2" id="exportDateList"></ul>
+</div>
+<div class="text-xs text-slate-500 italic">* Lưu ý: Nhân sự trùng lặp giữa các ngày sẽ được gộp chung.</div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-lg">
+<button class="px-4 py-2 bg-white border border-slate-300 rounded text-sm font-medium hover:bg-slate-50" onclick="exportManager.close()">Hủy</button>
+<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm" onclick="exportManager.processExport()">Xuất File DOCX</button>
+</div>
+</div>
+</div>
+<!-- Export Preview Modal -->
+<div class="fixed inset-0 bg-slate-950 z-[65] hidden flex items-center justify-center p-4" id="exportPreviewModal">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[92vh]">
+<div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+<h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-clipboard-check text-blue-600 mr-2"></i> Xác nhận nội dung xuất (DOCX / PDF)</h3>
+<button class="text-slate-400 hover:text-slate-600" onclick="exportManager.closePreview()"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-5 overflow-auto flex-grow custom-scrollbar">
+<div class="space-y-4 text-sm" id="exportPreviewBody"></div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-xl">
+<button class="px-4 py-2 bg-white border border-slate-300 rounded text-sm font-medium hover:bg-slate-50" onclick="exportManager.cancelPreview()">Quay lại</button>
+<button class="px-4 py-2 bg-white border border-slate-300 rounded text-sm font-bold text-slate-700 hover:bg-slate-50" onclick="exportManager.confirmPdf()"><i class="fas fa-file-pdf mr-1 text-red-600"></i> Xuất PDF</button>
+<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm" onclick="exportManager.confirmExport()">Xác nhận xuất DOCX</button>
+</div>
+</div>
+</div>
+<!-- Hidden PDF export root -->
+<div class="hidden" id="pdfExportRoot"></div>
+<!-- CONFLICT / IMPORT RESULT MODAL -->
+<div class="fixed inset-0 bg-slate-950 z-[80] hidden flex items-center justify-center p-4" id="importResultModal">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[92vh]">
+<div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+<h3 class="font-bold text-slate-800 text-lg">Kết quả Import</h3>
+<button class="text-slate-400 hover:text-slate-600 transition" onclick="document.getElementById('importResultModal').classList.add('hidden'); document.getElementById('importResultModal').classList.remove('flex')"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-5 overflow-auto flex-grow custom-scrollbar space-y-6">
+<!-- Success List -->
+<div>
+<h4 class="font-bold text-emerald-600 text-sm mb-2 flex items-center"><i class="fas fa-check-circle mr-2"></i> Đã thêm thành công (<span id="successCount">0</span>)</h4>
+<div class="overflow-hidden border border-emerald-100 rounded-lg">
+<table class="min-w-full divide-y divide-emerald-100 text-xs">
+<thead class="bg-emerald-50"><tr><th class="px-4 py-2 text-left font-semibold text-emerald-700">Họ và tên</th><th class="px-4 py-2 text-left font-semibold text-emerald-700">Danh số</th><th class="px-4 py-2 text-left font-semibold text-emerald-700">Chức danh</th><th class="px-4 py-2 text-left font-semibold text-emerald-700">Đơn vị</th></tr></thead>
+<tbody class="divide-y divide-emerald-50 bg-white" id="successListBody"></tbody>
+</table>
+</div>
+</div>
+<!-- Conflict List -->
+<div>
+<h4 class="font-bold text-red-600 text-sm mb-2 flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i> Đã bị trùng / Bỏ qua (<span id="conflictCount">0</span>)</h4>
+<div class="overflow-hidden border border-red-100 rounded-lg">
+<table class="min-w-full divide-y divide-red-100 text-xs">
+<thead class="bg-red-50"><tr><th class="px-4 py-2 text-left font-semibold text-red-700">Họ và tên</th><th class="px-4 py-2 text-left font-semibold text-red-700">Danh số</th><th class="px-4 py-2 text-left font-semibold text-red-700">Đã đăng ký đi</th><th class="px-4 py-2 text-left font-semibold text-red-700">Người thêm</th><th class="px-4 py-2 text-left font-semibold text-red-700">Lúc</th></tr></thead>
+<tbody class="divide-y divide-red-50 bg-white" id="conflictListBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-xl">
+<button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm transition" onclick="document.getElementById('importResultModal').classList.add('hidden'); document.getElementById('importResultModal').classList.remove('flex')">Đóng</button>
+</div>
+</div>
+</div>
+<!-- User Modal -->
+<div class="fixed inset-0 bg-slate-950 z-50 hidden flex items-center justify-center p-4" id="userModal">
+<div class="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col">
+<div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+<h3 class="font-bold text-slate-800 text-sm"><span id="userModalTitle">Thêm User Mới</span></h3>
+<button class="text-slate-400 hover:text-slate-600" onclick="userModal.close()"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-5 space-y-3">
+<input id="u_id" type="hidden"/>
+<input class="w-full border rounded p-2 text-sm" id="u_email" placeholder="Email đăng nhập" type="email"/>
+<div id="u_passwordWrapper"><input class="w-full border rounded p-2 text-sm" id="u_password" placeholder="Mật khẩu" type="text"/></div>
+<input class="w-full border rounded p-2 text-sm" id="u_name" placeholder="Tên hiển thị" type="text"/>
+<select class="w-full border rounded p-2 text-sm" id="u_role" onchange="userModal.toggleOrgSelect()"><option value="workshop">User (Xưởng)</option><option value="dispatcher">Admin (Điều độ)</option></select>
+<div id="u_orgWrapper"><select class="w-full border rounded p-2 text-sm" id="u_orgId"></select></div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-lg">
+<button class="px-3 py-1.5 bg-white border rounded text-xs font-medium hover:bg-slate-50" onclick="userModal.close()">Hủy</button>
+<button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold" onclick="userModal.save()">Lưu</button>
+</div>
+</div>
+</div>
+<!-- Import Modal -->
+<div class="fixed inset-0 bg-slate-950 z-50 hidden flex items-center justify-center p-3 sm:p-4" id="importModal">
+<div class="bg-white rounded-2xl shadow-2xl w-[96vw] max-w-6xl 2xl:max-w-7xl flex flex-col max-h-[92vh]">
+<div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+<h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+<i class="fas fa-file-excel text-emerald-600"></i>Import Danh sách
+                </h3>
+<div class="flex items-center gap-3">
+<a class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition" download="" href="./templates/maudangkydibien.xlsx" title="Tải file Excel mẫu (maudangkydibien.xlsx)">
+<i class="fas fa-download text-slate-500"></i>
+<span class="hidden sm:inline">Tải mẫu Excel</span>
+<span class="sm:hidden">Mẫu</span>
+</a>
+<button aria-label="Đóng" class="text-slate-400 hover:text-slate-600 transition" onclick="importModal.close()">
+<i class="fas fa-times text-lg"></i>
+</button>
+</div>
+</div>
+<div class="p-5 overflow-y-auto flex-grow space-y-4">
+<div class="hidden" id="importOrgSelectWrapper">
+<label class="text-xs font-bold text-slate-600 uppercase">Chọn đơn vị import</label>
+<select class="w-full border rounded-lg px-3 py-2 mt-1 bg-white" id="importOrgSelect"></select>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<button class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-sm" id="impTabExcel" onclick="importModal.switchMode('excel')" type="button">
+                        Import từ Excel
+                    </button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100" id="impTabForm" onclick="importModal.switchMode('form')" type="button">
+                        Nhập nhanh (giống mẫu Excel)
+                    </button>
+<span class="text-[11px] text-slate-500 italic">* Form nhanh hỗ trợ dán bảng từ Excel (Ctrl+C / Ctrl+V).</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+<!-- Dropzone (compact) -->
+<div class="relative group md:col-span-2 border-2 border-dashed border-slate-300 rounded-xl p-2 h-[64px] flex flex-col items-center justify-center text-center bg-white hover:border-blue-400 hover:bg-blue-50/30 transition" id="excelDropzoneWrap">
+<input accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="excelFile" type="file"/>
+<div class="group-hover:scale-[1.01] transition transform duration-200">
+<i class="fas fa-cloud-upload-alt text-lg text-slate-300 mb-1"></i>
+<p class="text-xs font-bold text-slate-700">Chọn file Excel</p>
+<p class="text-[11px] text-slate-500 mt-0.5">Kéo thả hoặc bấm</p>
+</div>
+<p class="text-blue-600 font-bold mt-1 text-[11px] break-all" id="fileNameDisplay"></p>
+</div>
+<!-- Summary / Meta -->
+<div class="hidden md:col-span-10 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm" id="parseMeta">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2">
+<div>
+<span class="text-slate-500 text-xs uppercase font-bold">Ngày ĐK</span>
+<input class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white" id="prevDateInput" placeholder="dd/mm/yyyy" value=""/>
+<p class="text-[11px] text-slate-500 mt-1">Định dạng bắt buộc: <span class="font-bold">dd/mm/yyyy</span> (VD: 28/12/2025).</p>
+</div>
+<div>
+<span class="text-slate-500 text-xs uppercase font-bold">Nơi đến</span>
+<div class="mt-1 flex gap-2">
+<select class="w-28 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 font-bold text-slate-800 bg-white" id="prevDestType">
+<option value="GIÀN">GIÀN</option>
+<option selected="" value="TÀU">TÀU</option>
+</select>
+<input class="flex-1 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 font-bold text-slate-800 bg-white" id="prevDestNameInput" placeholder="Nhập tên địa điểm (VD: CTK-3 / HOÀNG SA)..." value=""/>
+</div>
+<input id="prevDestInput" type="hidden" value=""/>
+<p class="text-[11px] text-slate-500 mt-1">Chọn <span class="font-bold">GIÀN/TÀU</span> + nhập địa điểm. Ví dụ: chọn <span class="font-bold">GIÀN</span> và nhập <span class="font-bold">CTK-3</span> → dữ liệu sẽ là <span class="font-bold">GIÀN CTK-3</span>.</p>
+</div>
+<div class="sm:col-span-2">
+<span class="text-slate-500 text-xs uppercase font-bold">NVSX</span>
+<input class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white" id="prevNVSXInput" placeholder="VD: 501-25; 502-25; 503-25" value=""/>
+<p class="text-[11px] text-slate-500 mt-1">Các NVSX cách nhau bởi dấu <span class="font-bold">;</span> (VD: 001-25; 002-25; 003-25).</p>
+</div>
+<div class="sm:col-span-2">
+<span class="text-slate-500 text-xs uppercase font-bold">Công việc</span>
+<textarea class="mt-1 w-full border border-slate-200 bg-white rounded-xl text-slate-700 font-mono p-3 text-sm leading-relaxed resize-y" id="prevTaskInput" placeholder="Mỗi NVSX nằm 1 dòng theo cấu trúc:
+001-25: nội dung của nvsx
+002-25: nội dung của nvsx" rows="5"></textarea>
+<p class="text-[11px] text-slate-500 mt-1 whitespace-pre-line">Nội dung công việc: <span class="font-bold">mỗi NVSX phải nằm 1 dòng</span> theo mẫu:
+001-25: nội dung của nvsx
+002-25: nội dung của nvsx</p>
+</div>
+</div>
+<div class="flex flex-wrap justify-between items-center border-t border-slate-200 mt-3 pt-3 gap-2">
+<span class="text-slate-700 font-semibold">Tìm thấy: <strong class="text-blue-600 text-lg" id="prevCount">0</strong> người</span>
+<span class="text-red-600 font-bold hidden text-xs bg-red-50 px-2 py-1 rounded-lg border border-red-100" id="prevWarning">Sai ngày!</span>
+</div>
+</div>
+<!-- Quick Form People (full-width) -->
+<div class="hidden md:col-span-12 bg-white rounded-2xl border border-slate-200 overflow-hidden" id="formPeopleWrap">
+<div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+<div class="text-sm font-bold text-slate-700">Nhập nhanh danh sách nhân sự</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition" onclick="importModal.addFormRow(1)" type="button">+ Thêm dòng</button>
+<button class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition" onclick="importModal.clearFormRows()" type="button">Xóa hết</button>
+</div>
+</div>
+<div class="p-4 space-y-3">
+<div>
+<label class="text-[11px] font-bold text-slate-500 uppercase">Dán nhanh từ Excel</label>
+<textarea class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-blue-500 outline-none bg-white" id="formPasteBox" placeholder="Copy từ file maudangkydibien.xlsx (cột B→M, bỏ cột STT) rồi dán vào đây (Ctrl+V). Mỗi dòng = 1 người." rows="3"></textarea>
+<p class="text-[11px] text-slate-500 mt-1 italic">Cột theo mẫu: Danh số | Họ tên | Chức danh | Ngày sinh | Nơi sinh | SĐT | CCCD | Ngày cấp | Hết hạn | Cân nặng | Hành lý | Hàng hóa | Ghi chú</p>
+</div>
+<div class="max-h-[48vh] lg:max-h-[55vh] overflow-auto border border-slate-100 rounded-xl">
+<table class="w-full text-xs">
+<thead class="bg-slate-50 sticky top-0">
+<tr class="text-slate-600">
+<th class="px-2 py-2 text-left w-10">#</th>
+<th class="px-2 py-2 text-left w-28">Danh số</th>
+<th class="px-2 py-2 text-left min-w-[180px]">Họ và tên</th>
+<th class="px-2 py-2 text-left w-40">Chức danh</th>
+<th class="px-2 py-2 text-left w-24">Ngày sinh</th>
+<th class="px-2 py-2 text-left min-w-[120px]">Nơi sinh</th>
+<th class="px-2 py-2 text-left w-28">SĐT</th>
+<th class="px-2 py-2 text-left w-36">CCCD/CMND</th>
+<th class="px-2 py-2 text-left w-24">Ngày cấp</th>
+<th class="px-2 py-2 text-left w-24">Hết hạn</th>
+<th class="px-2 py-2 text-left w-20">Cân nặng</th>
+<th class="px-2 py-2 text-left w-20">Hành lý</th>
+<th class="px-2 py-2 text-left w-20">Hàng hóa</th>
+<th class="px-2 py-2 text-left w-24">Ghi chú</th>
+<th class="px-2 py-2 text-left w-10"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100" id="formPeopleBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- People list (full-width) -->
+<div class="hidden md:col-span-12 bg-white rounded-2xl border border-slate-200 overflow-hidden" id="parsePeopleWrap">
+<div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+<div class="text-sm font-bold text-slate-700">Danh sách nhân sự tìm thấy</div>
+<div class="hidden text-[11px] text-slate-500" id="prevPeopleMore"></div>
+</div>
+<div class="max-h-[46vh] overflow-y-auto">
+<table class="w-full text-xs">
+<thead class="bg-slate-50 sticky top-0">
+<tr class="text-slate-600">
+<th class="px-3 py-2 text-left w-12">#</th>
+<th class="px-3 py-2 text-left w-28">Danh số</th>
+<th class="px-3 py-2 text-left">Họ và tên</th>
+<th class="px-3 py-2 text-left w-40">Chức danh</th>
+<th class="px-3 py-2 text-left w-44">Đơn vị</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100" id="prevPeopleBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="px-5 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+<button class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-semibold" onclick="importModal.close()">Hủy</button>
+<button class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed transition" disabled="" id="btnConfirmImport" onclick="importModal.processImport()">
+                    Xác nhận Import
+                </button>
+</div>
+</div>
+</div>
+<!-- Group Edit Modal (Admin) -->
+<div class="fixed inset-0 bg-slate-950 z-[55] hidden flex items-center justify-center p-4" id="groupEditModal">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col">
+<div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+<h3 class="font-bold text-slate-800 text-sm flex items-center"><i class="fas fa-edit text-blue-600 mr-2"></i> Sửa thông tin Giàn / NVSX / Công việc</h3>
+<button class="text-slate-400 hover:text-slate-600" onclick="app.closeGroupEditModal()"><i class="fas fa-times"></i></button>
+</div>
+<div class="p-5 space-y-4">
+<input id="groupEditOldName" type="hidden"/>
+<input id="groupEditOldKey" type="hidden"/>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tên giàn / tàu</label>
+<input class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="groupEditDest" type="text"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase mb-1">Số NVSX</label>
+<input class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="groupEditNvsx" placeholder="VD: 123/2025..." type="text"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nội dung công việc</label>
+<textarea class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none whitespace-pre-wrap" id="groupEditTask" placeholder="Nhập nội dung..." rows="7"></textarea>
+</div>
+<div class="text-xs text-slate-500 italic">
+                    * Áp dụng cho toàn bộ nhân sự thuộc giàn/tàu này trong ngày đang xem.
+                </div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2 rounded-b-xl">
+<button class="px-4 py-2 bg-white border border-slate-300 rounded text-sm font-medium hover:bg-slate-50" onclick="app.closeGroupEditModal()">Hủy</button>
+<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm" onclick="app.saveGroupEditModal()">Lưu</button>
+</div>
+</div>
+</div>
+<!-- Hidden Datalist for Admin -->
+<datalist id="allOrgsDatalist"></datalist>
+<div class="fixed inset-0 bg-slate-950 z-50 hidden flex items-center justify-center p-3 sm:p-4" id="editPersonModal">
+<div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[92vh]">
+<div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+<h3 class="font-bold text-slate-800 flex items-center gap-2">
+<i class="fas fa-user-edit text-blue-600"></i>
+<span id="editModalTitle">Sửa thông tin</span>
+</h3>
+<button aria-label="Đóng" class="text-slate-400 hover:text-slate-600 transition" onclick="editModal.close()">
+<i class="fas fa-times text-lg"></i>
+</button>
+</div>
+<div class="p-5 overflow-y-auto space-y-4">
+<input id="edit_id" type="hidden"/>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+<!-- 1. THÔNG TIN CÁ NHÂN -->
+<div class="border border-slate-200 rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
+<h4 class="font-bold text-slate-800">Thông tin cá nhân</h4>
+</div>
+<p class="text-xs text-slate-500">Nhập nhanh các thông tin bắt buộc</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Danh số (Staff ID)</label>
+<div class="flex gap-2">
+<input class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50" id="edit_staffNo" placeholder="VD: XL1384" type="text"/>
+<button class="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100" onclick="masterDataManager.autoFill(document.getElementById('edit_staffNo').value)" title="Tra cứu Master Data" type="button">
+<i class="fas fa-search"></i>
+</button>
+</div>
+<p class="text-[11px] text-slate-500 mt-1">Gợi ý: nhập danh số rồi bấm kính lúp để tự điền.</p>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Họ và tên</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_fullName" placeholder="Nguyễn Văn A" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Chức danh</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_title" placeholder="Kỹ sư / Thợ / ..." type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Đơn vị</label>
+<div id="orgInputContainer"></div>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">SĐT</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_phone" placeholder="VD: 09xxxxxxxx" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Ngày sinh</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_dob" placeholder="dd/mm/yyyy" type="text"/>
+</div>
+<div class="sm:col-span-2">
+<label class="text-[10px] font-bold text-slate-500 uppercase">Nơi sinh</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_pob" placeholder="Tỉnh/TP..." type="text"/>
+</div>
+</div>
+</div>
+<!-- 2. THÔNG TIN CÔNG VIỆC -->
+<div class="border border-blue-100 bg-blue-50/40 rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold">2</span>
+<h4 class="font-bold text-slate-800">Thông tin công việc (quan trọng)</h4>
+</div>
+<button class="text-xs font-semibold text-blue-700 hover:underline" onclick="document.getElementById('advEdit').classList.toggle('hidden')" type="button">
+                                Ẩn/Hiện
+                            </button>
+</div>
+<div class="space-y-3" id="advEdit">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Nơi đến (Giàn/Tàu)</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_destination" placeholder="Nhập tên Giàn/Tàu..." type="text"/>
+<div class="mt-2 flex flex-wrap gap-2 text-xs" id="destSuggestions"></div>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Số NVSX</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_nvsxNo" placeholder="VD: 504-25; 505-25" type="text"/>
+</div>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Nội dung công việc (chi tiết)</label>
+<textarea class="w-full border rounded-lg px-3 py-2 text-sm h-28" id="edit_taskDesc" placeholder="Nhập nội dung công việc..."></textarea>
+<p class="text-[11px] text-slate-500 mt-1">Nội dung này dùng cho Export Word theo giàn.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. GIẤY TỜ & HÀNH LÝ -->
+<div class="border border-slate-200 rounded-2xl p-4">
+<div class="flex items-center gap-2 mb-3">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-700 text-white text-xs font-bold">3</span>
+<h4 class="font-bold text-slate-800">Giấy tờ &amp; hành lý</h4>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="sm:col-span-2">
+<label class="text-[10px] font-bold text-slate-500 uppercase">CCCD/CMND/Hộ chiếu</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_idNo" placeholder="" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Ngày cấp</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_idIssueDate" placeholder="dd/mm/yyyy" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Hết hạn</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_idExpiryDate" placeholder="dd/mm/yyyy" type="text"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Cân nặng (kg)</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_weightKg" placeholder="" type="number"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Hành lý (kg)</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_luggageKg" placeholder="" type="number"/>
+</div>
+<div>
+<label class="text-[10px] font-bold text-slate-500 uppercase">Hàng hóa (kg)</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_cargoKg" placeholder="" type="number"/>
+</div>
+<div class="lg:col-span-4">
+<label class="text-[10px] font-bold text-slate-500 uppercase">Ghi chú dòng</label>
+<input class="w-full border rounded-lg px-3 py-2 text-sm" id="edit_rowNote" placeholder="" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<div class="px-5 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3 rounded-b-2xl">
+<button class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-semibold" onclick="editModal.close()">Hủy</button>
+<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm" onclick="editModal.save()">Lưu thay đổi</button>
+</div>
+</div>
+</div>
+<!-- WARNING CENTER MODAL -->
+<div class="fixed inset-0 bg-black z-[65] hidden items-center justify-center p-4" id="warningModal">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200">
+<div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+<div>
+<div class="text-lg font-extrabold text-slate-800"><i class="fas fa-triangle-exclamation text-red-500 mr-2"></i>Danh sách cảnh báo</div>
+<div class="text-xs text-slate-500 mt-0.5">Ngày: <span class="font-bold text-slate-700" id="warningDateLabel">--</span> • Tổng: <span class="font-bold text-red-600" id="warningCountLabel">0</span></div>
+</div>
+<button class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2" onclick="warningCenter.close()">×</button>
+</div>
+<div class="p-4 space-y-3">
+                        ${isInconsistent ? `<div bg-amber-50="" border="" border-amber-200="" class='\"text-xs' p-2\"="" rounded-md="" text-amber-800="">Dữ liệu không đồng nhất, hãy bấm <b>Sửa giàn/NVSX/CV</b> để chốt lại (vẫn có thể Export).</div>` : ``}
+                <div class="flex flex-col md:flex-row md:items-center gap-3">
+<div class="flex-1">
+<input class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="warningSearch" placeholder="Tìm theo tên / danh số / giàn / đơn vị / loại cảnh báo..." type="text"/>
+</div>
+<button class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-2 rounded-lg text-sm font-bold shadow-sm" onclick="warningCenter.exportCSV()"><i class="fas fa-file-csv mr-2 text-slate-500"></i>Xuất CSV</button>
+</div>
+<div class="flex flex-wrap gap-2" id="warningSummary"></div>
+<div class="overflow-auto border border-slate-200 rounded-lg">
+<table class="min-w-full divide-y divide-slate-200 text-xs bg-white">
+<thead class="bg-slate-50">
+<tr>
+<th class="px-3 py-2 text-center w-12">#</th>
+<th class="px-3 py-2 text-left">Họ và tên</th>
+<th class="px-3 py-2 text-center w-24">Danh số</th>
+<th class="px-3 py-2 text-left">Đơn vị</th>
+<th class="px-3 py-2 text-left">Giàn/Tàu</th>
+<th class="px-3 py-2 text-left">Cảnh báo</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100" id="warningTableBody"></tbody>
+</table>
+</div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+<button class="px-4 py-2 bg-white border hover:bg-slate-100 rounded text-sm font-bold" onclick="warningCenter.close()">Đóng</button>
+</div>
+</div>
+</div>
+<!-- AUDIT LOG MODAL -->
+<div class="fixed inset-0 bg-black z-[65] hidden items-center justify-center p-4" id="auditModal">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-hidden border border-slate-200 max-h-[92vh] flex flex-col">
+<div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+<div>
+<div class="text-lg font-extrabold text-slate-800"><i class="fas fa-clipboard-list text-blue-600 mr-2"></i>Nhật ký thao tác</div>
+<div class="text-xs text-slate-500 mt-0.5">Ghi lại các thao tác quan trọng: thêm/sửa/xóa, import, khóa ngày, export...</div>
+</div>
+<button class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2" onclick="auditModal.close()">×</button>
+</div>
+<div class="p-4 space-y-3 overflow-y-auto flex-1">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+<div class="md:col-span-2">
+<input class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="auditSearch" placeholder="Tìm theo user / danh số / tên / giàn / hành động..." type="text"/>
+</div>
+<div>
+<select class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" id="auditActionFilter">
+<option value="">Tất cả hành động</option>
+<option value="ADD_PERSON">Thêm nhân sự</option>
+<option value="UPDATE_PERSON">Sửa nhân sự</option>
+<option value="DELETE_PERSON">Xóa nhân sự</option>
+<option value="DELETE_ALL">Xóa toàn bộ</option>
+<option value="IMPORT">Import</option>
+<option value="GROUP_EDIT">Sửa giàn/NVSX/CV</option>
+<option value="LOCK_TOGGLE">Khóa/Mở ngày</option>
+<option value="EXPORT_DOCX">Export Word</option>
+</select>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-sm" onclick="auditModal.refresh()"><i class="fas fa-rotate mr-2"></i>Tải lại</button>
+<button class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-2 rounded-lg text-sm font-bold shadow-sm" onclick="auditModal.exportCSV()"><i class="fas fa-file-csv mr-2 text-slate-500"></i>CSV</button>
+</div>
+</div>
+<div class="overflow-auto border border-slate-200 rounded-lg max-h-[55vh]">
+<table class="min-w-full divide-y divide-slate-200 text-xs bg-white">
+<thead class="bg-slate-50">
+<tr>
+<th class="px-3 py-2 text-left w-40">Thời gian</th>
+<th class="px-3 py-2 text-left w-40">User</th>
+<th class="px-3 py-2 text-left w-32">Hành động</th>
+<th class="px-3 py-2 text-left w-24">Ngày</th>
+<th class="px-3 py-2 text-left">Chi tiết</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100" id="auditTableBody"></tbody>
+</table>
+</div>
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+<div class="text-xs text-slate-500">Hiển thị <span class="font-bold text-slate-700" id="auditRange">0-0</span> / <span class="font-bold text-slate-700" id="auditTotal">0</span></div>
+<div class="flex items-center gap-2 justify-end">
+<button class="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm font-bold hover:bg-slate-50" id="auditPrevBtn">Trước</button>
+<div class="text-sm font-bold text-slate-700" id="auditPageLabel">Trang 1/1</div>
+<button class="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm font-bold hover:bg-slate-50" id="auditNextBtn">Sau</button>
+</div>
+</div>
+<div class="text-[11px] text-slate-400">Hiển thị tối đa 200 dòng gần nhất (lọc tại máy để tránh lỗi index Firestore).</div>
+</div>
+<div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+<button class="px-4 py-2 bg-white border hover:bg-slate-100 rounded text-sm font-bold" onclick="auditModal.close()">Đóng</button>
+</div>
+</div>
+</div>
+<!-- MAIN SCRIPT -->
+<script defer="" src="app.min_v21_excel_order_manual_drag.js?v=1"></script>
+</body>
+</html>
