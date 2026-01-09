@@ -2615,6 +2615,7 @@ confirmBaydi: async () => {
 document.getElementById('btnLock').classList.toggle('hidden', !isDisp);
                 document.getElementById('importOrgSelectWrapper').classList.toggle('hidden', !isDisp); document.getElementById('btnExport').classList.toggle('hidden', !isDisp);
                 document.getElementById('btnReport').classList.toggle('hidden', !isDisp); // Toggle Report Button
+                try { document.getElementById('btnCleanup').classList.toggle('hidden', !isDisp); } catch(e) {} // Toggle Cleanup Button
             },
             loadOrgs: async () => {
                 // UPDATED PATH: Use public/data/organizations
@@ -4270,3 +4271,203 @@ try { window.userModal = userModal; } catch(e) { /* ignore */ }
 try { window.warningCenter = warningCenter; } catch(e) { /* ignore */ }
 try { window.masterDataManager = masterDataManager; } catch(e) { /* ignore */ }
 try { window.userManager = userManager; } catch(e) { /* ignore */ }
+
+
+;/* ===== Admin Cleanup Manager (Delete by Month/Year) ===== */
+const cleanupManager = (() => {
+  const _els = () => ({
+    modal: document.getElementById('cleanupModal'),
+    mode: document.getElementById('cleanupMode'),
+    year: document.getElementById('cleanupYear'),
+    month: document.getElementById('cleanupMonth'),
+    confirmText: document.getElementById('cleanupConfirmText'),
+    confirmInput: document.getElementById('cleanupConfirmInput'),
+    startBtn: document.getElementById('cleanupStartBtn'),
+    progBox: document.getElementById('cleanupProgressBox'),
+    progDay: document.getElementById('cleanupProgDay'),
+    progTotalDays: document.getElementById('cleanupProgTotalDays'),
+    progPeople: document.getElementById('cleanupProgPeople'),
+    progPlans: document.getElementById('cleanupProgPlans'),
+    progErrors: document.getElementById('cleanupProgErrors'),
+  });
+
+  const pad2 = (n) => String(n).padStart(2,'0');
+  const toKey = (dt) => {
+    const y = dt.getFullYear();
+    const m = pad2(dt.getMonth()+1);
+    const d = pad2(dt.getDate());
+    return `${y}${m}${d}`;
+  };
+  const parseYearMonth = () => {
+    const e = _els();
+    const mode = (e.mode?.value || 'month');
+    const y = parseInt(e.year?.value || '', 10);
+    const mo = parseInt(e.month?.value || '1', 10);
+    if (!y || y < 2000 || y > 2100) return { ok:false, msg:'Năm không hợp lệ.' };
+    if (mode === 'month' && (mo < 1 || mo > 12)) return { ok:false, msg:'Tháng không hợp lệ.' };
+    return { ok:true, mode, year:y, month:mo };
+  };
+
+  const buildRangeDates = ({mode, year, month}) => {
+    const start = (mode === 'year')
+      ? new Date(year, 0, 1)
+      : new Date(year, month-1, 1);
+    const end = (mode === 'year')
+      ? new Date(year, 11, 31)
+      : new Date(year, month, 0); // last day of month
+    // build list of date keys inclusive
+    const days = [];
+    const cur = new Date(start.getTime());
+    while (cur <= end) {
+      days.push({ key: toKey(cur), date: new Date(cur.getTime()) });
+      cur.setDate(cur.getDate()+1);
+    }
+    return { start, end, days };
+  };
+
+  const updateConfirmText = () => {
+    const e = _els();
+    const v = parseYearMonth();
+    if (!e.confirmText) return;
+    if (!v.ok) { e.confirmText.textContent = 'DELETE'; return; }
+    e.confirmText.textContent = (v.mode === 'year')
+      ? `DELETE ${v.year}`
+      : `DELETE ${v.year}-${pad2(v.month)}`;
+    // Toggle month input
+    if (e.month) e.month.disabled = (v.mode === 'year');
+  };
+
+  const open = () => {
+    if (state.userRole !== 'dispatcher') { ui.showToast('Chỉ Admin mới được dùng chức năng này.', 'error'); return; }
+    const e = _els();
+    if (!e.modal) return;
+    // default year/month to current selected date if available
+    try {
+      const k = state.currentDateKey || '';
+      const y = k?.slice(0,4);
+      const m = k?.slice(4,6);
+      if (e.year && y) e.year.value = parseInt(y,10);
+      if (e.month && m) e.month.value = parseInt(m,10);
+    } catch(_) {}
+    if (e.mode) e.mode.value = 'month';
+    if (e.confirmInput) e.confirmInput.value = '';
+    if (e.progBox) e.progBox.classList.add('hidden');
+    if (e.progErrors) e.progErrors.textContent = '';
+    updateConfirmText();
+    e.modal.classList.remove('hidden');
+    e.modal.classList.add('flex');
+    // attach listeners once
+    if (!e.mode?.__cleanup_bound) {
+      e.mode.__cleanup_bound = true;
+      e.mode.addEventListener('change', updateConfirmText);
+      e.year.addEventListener('input', updateConfirmText);
+      e.month.addEventListener('change', updateConfirmText);
+    }
+  };
+
+  const close = () => {
+    const e = _els();
+    if (!e.modal) return;
+    e.modal.classList.add('hidden');
+    e.modal.classList.remove('flex');
+  };
+
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  const start = async () => {
+    if (state.userRole !== 'dispatcher') { ui.showToast('Chỉ Admin mới được dùng chức năng này.', 'error'); return; }
+    const e = _els();
+    const v = parseYearMonth();
+    if (!v.ok) { ui.showToast(v.msg, 'error'); return; }
+    const expected = (v.mode === 'year') ? `DELETE ${v.year}` : `DELETE ${v.year}-${pad2(v.month)}`;
+    const typed = (e.confirmInput?.value || '').trim();
+    if (typed !== expected) { ui.showToast('Chuỗi xác nhận chưa đúng.', 'error'); return; }
+
+    const { days } = buildRangeDates(v);
+    if (!days.length) { ui.showToast('Không có ngày nào trong khoảng đã chọn.', 'error'); return; }
+
+    // UI lock
+    if (e.startBtn) e.startBtn.disabled = true;
+    if (e.mode) e.mode.disabled = true;
+    if (e.year) e.year.disabled = true;
+    if (e.month) e.month.disabled = true;
+    if (e.confirmInput) e.confirmInput.disabled = true;
+    if (e.progBox) e.progBox.classList.remove('hidden');
+    if (e.progTotalDays) e.progTotalDays.textContent = String(days.length);
+
+    let deletedPeople = 0;
+    let deletedPlans = 0;
+    let errors = [];
+
+    const db = firebase.firestore();
+
+    const deleteBatchDocs = async (docRefs) => {
+      const CHUNK = 450; // safety under 500
+      for (let i = 0; i < docRefs.length; i += CHUNK) {
+        const batch = db.batch();
+        const chunk = docRefs.slice(i, i+CHUNK);
+        chunk.forEach(ref => batch.delete(ref));
+        await batch.commit();
+      }
+    };
+
+    try {
+      for (let i = 0; i < days.length; i++) {
+        const { key } = days[i];
+        if (e.progDay) e.progDay.textContent = String(i+1);
+
+        const planRef = getPublicColl('dailyPlans').doc(key);
+
+        // 1) delete people (even if plan doc doesn't exist)
+        try {
+          const peopleSnap = await planRef.collection('people').get();
+          if (!peopleSnap.empty) {
+            const refs = peopleSnap.docs.map(d => d.ref);
+            await deleteBatchDocs(refs);
+            deletedPeople += refs.length;
+            if (e.progPeople) e.progPeople.textContent = String(deletedPeople);
+          }
+        } catch(err) {
+          errors.push(`[${key}] Xóa people lỗi: ${err?.message || err}`);
+        }
+
+        // 2) delete plan doc
+        try {
+          await planRef.delete();
+          deletedPlans += 1;
+          if (e.progPlans) e.progPlans.textContent = String(deletedPlans);
+        } catch(err) {
+          // If missing, ignore; if permission, record
+          const msg = String(err?.message || err || '');
+          if (!/No document to update|NOT_FOUND|not found/i.test(msg)) {
+            errors.push(`[${key}] Xóa dailyPlans lỗi: ${msg}`);
+          }
+        }
+
+        // yield UI every few iterations
+        if (i % 5 === 0) await sleep(10);
+      }
+
+      if (errors.length) {
+        if (e.progErrors) e.progErrors.textContent = errors.slice(0, 50).join('\n') + (errors.length > 50 ? `\n...(${errors.length-50} lỗi nữa)` : '');
+        ui.showToast(`Dọn xong nhưng có ${errors.length} lỗi (xem chi tiết).`, 'warning');
+      } else {
+        ui.showToast('Dọn dữ liệu thành công.', 'success');
+      }
+
+      // refresh current view if current date falls in deleted range
+      try { app.loadPlan(state.currentDateKey); } catch(_) {}
+    } finally {
+      // UI unlock
+      if (e.startBtn) e.startBtn.disabled = false;
+      if (e.mode) e.mode.disabled = false;
+      if (e.year) e.year.disabled = false;
+      if (e.month) e.month.disabled = (e.mode?.value === 'year');
+      if (e.confirmInput) e.confirmInput.disabled = false;
+    }
+  };
+
+  return { open, close, start, updateConfirmText };
+})();
+window.cleanupManager = cleanupManager;
+
